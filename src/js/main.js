@@ -100,7 +100,7 @@ function project(props, uid) {
 }
 
 var reader = new XMLHttpRequest();
-reader.open("GET", "http://localhost:8003/files/projects.yaml", true);
+reader.open("GET", "./files/projects.yaml", true);
 reader.onreadystatechange = function () {
   if (reader.readyState === 4) {
     if (reader.status === 200 || reader.status === 0) {
