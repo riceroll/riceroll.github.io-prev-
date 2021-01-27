@@ -1,0 +1,97 @@
+geodesy:
+  imageName: thumbnail.jpg
+  projectTitle: 'Geodesy+: Inverse Design Tool for Asymmetrical Self-Rising Surfaces with Color Texture'
+  projectLink: https://www.morphingmatter.cs.cmu.edu/projects/geodesy-plus
+  pdfLink: https://www.morphingmatter.cs.cmu.edu/s/Geodesy_SCF.pdf
+  doiLink: https://doi.org/10.1145/3424630.3425420
+  videoLink: https://vimeo.com/479200019
+  codeLink: https://github.com/riceroll/GeodesyPlus
+  projectDescription: >-
+    With optimized printing tool paths and local layer height, 3D printed flat sheets can self‐transform into 3D shapes under heat.
+    By viewing 3D printing as a programming system, we encode the internal morphing energy into the material through basic machine operations.
+    We built an end‐to‐end tool that optimized the printing G‐code to enable flat sheets to self‐transform into arbitrary input height field. T
+    he tool flattens the height field into a 2D layout with stress information using a geometry‐based optimization algorithm,
+    and computes printing tool paths with a local path planning algorithm. Such a system enables rapid prototyping,
+    flat‐packaging and self‐deployment.
+#    Geodesy + is an end-to-end tool that enables an initially flat sheet to self-transform into the input height field.
+#    The tool first flattens the height field into a 2D layout with stress information using a geometry-based optimization algorithm,
+#    then computes printing tool paths with a path planning algorithm. Although FDM printing is the fabrication method in this work,
+#    our approach can be applied to most extrusion-based printing methods in theory.
+#    The results exemplify how the tool broadens the capabilities of 4D printing with an expanded shape space,
+#    a low-cost but precise coloring technique, and an intuitive design process.
+
+simulearn:
+  imageName: thumbnail.jpg
+  projectTitle: 'SimuLearn: Fast and Accurate Simulator to Support Morphing Materials Design and Workflows'
+  projectLink: https://www.morphingmatter.cs.cmu.edu/projects/simulearn
+  pdfLink: https://www.morphingmatter.cs.cmu.edu/s/SimuLearn-paper.pdf
+  doiLink: https://dl.acm.org/doi/10.1145/3379337.3415867
+  videoLink: https://youtu.be/Eh5lKTPO0e0
+  codeLink: https://github.com/morphing-matter-lab/SimuLearn
+  projectDescription: >-
+    SimuLearn is a data-driven method that combines finite element analysis and machine learning to create
+    real-time (0.61 seconds) and truthful (97% accuracy) morphing material simulators.
+    We use mesh-like 4D printed structures to contextualize this method and prototype design tools to exemplify
+    the design workflows and spaces enabled by a fast and accurate simulation method.
+
+thermorph:
+  imageName: thumbnail.jpg
+  projectTitle: 'Thermorph: Democratizing 4D Printing of Self-Folding Materials and Interfaces'
+  projectLink: https://www.morphingmatter.cs.cmu.edu/projects/thermorph
+  pdfLink: https://www.morphingmatter.cs.cmu.edu/s/paper260.pdf
+  doiLink: https://doi.org/10.1145/3173574.3173834
+  videoLink: https://vimeo.com/265829811#at=0
+#  codeLink: https://github.com/morphing-matter-lab/SimuLearn
+  projectDescription: >-
+    By taking advantage of the warpage that is commonly considered as a defect of desktop fused deposition modeling (FDM)
+    3D printers, we have used an inexpensive 3-D printer to produce flat plastic items that, when heated,
+    fold themselves into predetermined shapes, such as a rose, a boat or even a bunny.
+    These self-folding plastic objects represent a first step toward products such as flat-pack furniture that
+    assume their final shapes with the help of a heat gun. Emergency shelters also might be shipped flat and
+    fold into shape under the warmth of the sun.
+
+4dMesh:
+  imageName: thumbnail.jpg
+  projectTitle: '4DMesh: 4D Printing Morphing Non-Developable Mesh Surfaces'
+  projectLink: https://www.morphingmatter.cs.cmu.edu/projects/4dmesh
+  pdfLink: https://www.morphingmatter.cs.cmu.edu/s/4dmesh.pdf
+  doiLink: https://dl.acm.org/doi/10.1145/3242587.3242625
+#  codeLink:
+  videoLink: https://vimeo.com/321001101
+  projectDescription: >-
+    We present 4DMesh, a method of combining shrinking and bending thermoplastic actuators with customized geometric algorithms
+    to 4D print and morph centimeter- to meter-sized functional non-developable surfaces.
+    With our tools, users can input CAD models of target surfaces and produce respective printable files.
+    The flat sheet printed can morph into target surfaces when triggered by heat.
+
+self-healing:
+  imageName: thumbnail.jpg
+  projectTitle: 'Self-healing UI'
+  projectLink: https://www.morphingmatter.cs.cmu.edu/projects/healer
+  pdfLink: https://www.morphingmatter.cs.cmu.edu/s/Self-healing-UI_small.pdf
+  doiLink: https://doi.org/10.1145/3332165.3347901
+  videoLink: https://vimeo.com/390389122
+#  codeLink: https://github.com/morphing-matter-lab/SimuLearn
+  projectDescription: >-
+    From lizard tails to starfish arms, from grafted trees to human skin, living things in nature have long been
+    utilizing the ability to “heal” their wounds on the soft bodies to survive in the outer environment.
+    In order to impart this self-healing property to our daily life interface, we propose Self-healing UI,
+    a soft-bodied interface that can intrinsically self-heal damages, reconfigure and fuse without external stimuli or glue.
+
+
+paperActuator:
+  imageName: thumbnail.jpg
+  projectTitle: 'Printed Paper Actuator'
+  projectLink: https://www.morphingmatter.cs.cmu.edu/projects/printed-paper-actuator
+  pdfLink: https://www.morphingmatter.cs.cmu.edu/s/printedpaperactuator_small.pdf
+  doiLink: https://dl.acm.org/doi/10.1145/3173574.3174143
+  videoLink: https://vimeo.com/280417057
+#  codeLink: https://github.com/morphing-matter-lab/SimuLearn
+  projectDescription: >-
+    “We have been living with paper for more than two thousand years. It is a commodity that closely interfaces with human beings,
+    even in this digital age. There have been several attempts at “tech paper innovation” over the past few years,
+    for example, circuit ink printers and pens, but there has not yet been a huge innovation.
+    However, the Printed Paper Actuator takes a new approach—not just printing circuit but actually kinetically working with paper.
+    This innovation transforms the old media of paper and signals a new phase of media expression for industrial purposes (prototyping)
+    and/or for pleasure (DIY for kids). These technological and material innovations take our idea of paper to the next level.”
+    Ars Electronica
