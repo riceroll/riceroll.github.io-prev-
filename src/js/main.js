@@ -11,7 +11,7 @@ function renderWithID(id, elemList) {
 }
 
 var googleScholarLink = 'https://scholar.google.com/citations?user=ETjqnDsAAAAJ';
-var cvLink = './files/cv.pdf';
+var cvLink = './files/CV.pdf';
 
 renderWithID("google-scholar", ['a', {
   href: googleScholarLink,
