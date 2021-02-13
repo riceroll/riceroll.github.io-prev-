@@ -1,0 +1,25 @@
+{
+  "name": "mkb",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.js",
+  "scripts": {
+    "test": "node server.js",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/riceroll/mkb.git"
+  },
+  "author": "Jianzhe Gu",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/riceroll/mkb/issues"
+  },
+  "homepage": "https://github.com/riceroll/mkb#readme",
+  "dependencies": {
+    "browserify": "^16.5.1",
+    "express": "^4.17.1",
+    "three": "^0.116.1"
+  }
+}
