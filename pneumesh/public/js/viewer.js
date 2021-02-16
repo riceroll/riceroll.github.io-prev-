@@ -15,7 +15,6 @@ class Viewer {
     static faceColor = new thre.Color(1, 1, 1);
     static selectedColor = new thre.Color(0.8, 0.2, 0.2);
 
-
     constructor(model) {
         this.model = model;
         this.model.viewer = this;

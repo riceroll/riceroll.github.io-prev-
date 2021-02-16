@@ -7,7 +7,7 @@ class Animation {
     this.startTime = 0;
     this.ws = null;
 
-    this.playing = false;
+    this.simulate = false;
   }
 
   reset() {
@@ -15,11 +15,11 @@ class Animation {
   }
 
   play() {
-    this.playing = true;
+    this.simulate = true;
   }
 
   stop() {
-    this.playing = false;
+    this.simulate = false;
   }
 
   start() {
@@ -28,7 +28,7 @@ class Animation {
   }
 
   update() {
-    if (!this.playing) return 0;
+    if (!this.simulate) return 0;
 
     let timePassed = (new Date()).getTime() - this.startTime;
     let t = timePassed / Animation.duration;

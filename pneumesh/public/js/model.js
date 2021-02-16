@@ -16,6 +16,7 @@ class Model {
         this.viewer = null;
 
         this.v = [];  // vertex positions: nV x 3
+        this.v0 = [];
         this.e = [];  // edge positions: nE x 2
         this.l0 = []; // original lengths: nE
         this.constraints = [];  // percentage of constraints: nE
@@ -26,8 +27,9 @@ class Model {
         this.faces = [];
         this.polytopes = [];
 
-        this.pressure = false;
-        this.playing = true;
+        this.simulate = false;
+        this.inflate = false;
+        this.deflate = false;
 
         this.init();
     }
@@ -63,6 +65,21 @@ class Model {
         for (let i=0; i<this.v.length; i++) {
             this.vel.push(new thre.Vector3());
             this.f.push(new thre.Vector3());
+        }
+
+        this.recordV();
+    }
+
+    recordV() {
+        this.v0 = [];
+        for (let v of this.v) {
+            this.v0.push(v.clone());
+        }
+    }
+
+    resetV() {
+        for (let i=0; i<this.v.length; i++) {
+            this.v[i] = this.v0[i].clone();
         }
     }
 
@@ -100,9 +117,9 @@ class Model {
             let v1 = this.v[e[1]];
 
             let vec = v1.clone().sub(v0); // from 0 to 1
-            let l0 = this.l0[i] * (1 - (1 - this.constraints[i]) * 0.5 * (1 - this.pressure));
+            let l0 = this.l0[i] * (1 - (1 - this.constraints[i] / 0.3) * 0.5 * (1 - this.inflate));
 
-            let f = (vec.length() - l0) * Model.k;
+            let f = (vec.length() - l0) * Model.k * (this.inflate + this.deflate);
             f = vec.normalize().multiplyScalar(f);  // from 0 to 1
             this.f[e[0]].add(f);
             this.f[e[1]].add(f.negate());
@@ -110,7 +127,7 @@ class Model {
     }
 
     step(n=1) {
-        if (!this.playing) {return}
+        if (!this.simulate) {return}
 
         this.update();
 
@@ -163,6 +180,7 @@ class Model {
             return [dist, iv0, iv1];
         };
 
+        // merge poly
         let added = false;
         for (let iF=0; iF<this.faces.length; iF++) {
             if (neighboring(iFace, iF)) {
@@ -179,6 +197,7 @@ class Model {
                         }
                     }
                     if (!exist) {
+                        // TODO
                         this.e.push(e);
                         added = true;
                     }
@@ -339,6 +358,7 @@ class Model {
         let angle = ZNeg.angleTo(axis);
 
         this.mesh = this.mesh.rotateOnAxis(axis, angle);
+        this.mesh =
 
         console.log(angle);
 

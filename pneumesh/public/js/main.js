@@ -112,6 +112,7 @@ let utils = {
             ground.visible = false;
             gridHelper.visible = false;
 
+            model.resetV();
         }
         else {
             utils.disable(gui.checkBoxes.addingPolytope);
@@ -145,26 +146,34 @@ function initGUI() {
     gui.window = new GUI();
     let shape = gui.window.addFolder('shape');
     let constraint = gui.window.addFolder('constraint');
-    let control = gui.window.addFolder('mode');
+    let control = gui.window.addFolder('control');
+    let simulation = gui.window.addFolder('simulation');
 
     shape.add(utils, 'grow');
     shape.add(utils, 'shrink');
-    gui.sliders.length = constraint.add( gui.effect, "constraint", 0, 1, 0.25).listen();
-    control.add(model, 'playing').listen();
-    control.add(model, 'pressure').listen();
+    // gui.sliders.length = constraint.add( gui.effect, "length", 0, 0.3, 0.3/4).listen();
+
+    gui.checkBoxes.inflate = control.add(model, 'inflate').listen();
+    gui.checkBoxes.deflate = control.add(model, 'deflate').listen();
+
+    simulation.add(model, 'simulate').listen();
+
     gui.checkBoxes.edittingMesh = shape.add(viewer, 'edittingMesh').listen();
     gui.checkBoxes.addingPolytope = shape.add(viewer, 'addingPolytope').listen();
     gui.checkBoxes.removingPoly = shape.add(viewer, 'removingPoly').listen();
     gui.checkBoxes.setGround = shape.add(viewer, 'setGround').listen();
 
+
+
     let effectController = function () {this.constraint = 0;};
     gui.effect = new effectController();
-    gui.sliders.constraint = constraint.add( gui.effect, "constraint", 0, 1, 0.25).listen();
+    gui.sliders.constraint = constraint.add( gui.effect, "constraint", 0, 0.3, 0.3/4).listen();
 
 
     shape.open();
     constraint.open();
     control.open();
+    simulation.open();
 
     // gui functions =============================================
     // constraints
@@ -206,6 +215,18 @@ function initGUI() {
     gui.checkBoxes.setGround.__checkbox.onclick = gui.checkBoxes.setGround.__li.onclick = () => {
         gui.checkBoxes.addingPolytope.setValue(false);
         gui.checkBoxes.removingPoly.setValue(false);
+    };
+
+    gui.checkBoxes.inflate.__checkbox.onclick = gui.checkBoxes.inflate.__li.onclick = () => {
+        if (! model.inflate) {
+            gui.checkBoxes.deflate.setValue(false);
+        }
+    };
+
+    gui.checkBoxes.deflate.__checkbox.onclick = gui.checkBoxes.deflate.__li.onclick = () => {
+        if (! model.deflate) {
+            gui.checkBoxes.inflate.setValue(false);
+        }
     }
 
 
@@ -274,6 +295,8 @@ function onMouseClick(event) {
         else if (viewer.setGround) {
             model.setGround(viewer.idSelected[0]);
         }
+
+        model.recordV();
 
         viewer.idSelected = [];
         viewer.typeSelected = [];
