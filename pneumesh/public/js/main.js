@@ -10,7 +10,8 @@ let mouse = new THREE.Vector2();
 let raycaster = new THREE.Raycaster();
 let gui;
 
-let coreMKB;
+let gridHelper;
+let ground;
 
 
 let model = new Model();
@@ -26,16 +27,18 @@ function initScene() {
     info.style.textAlign = 'center';
     info.style.color = '#fff';
     info.style.link = '#f80';
-    info.innerHTML = 'MKB';
+    // info.innerHTML = 'PneuMesh';
     document.body.appendChild( info );
 
-    renderer = new THREE.WebGLRenderer();
+    renderer = new THREE.WebGLRenderer({antialias: true});
     renderer.setPixelRatio( window.devicePixelRatio );
     renderer.setSize( window.innerWidth, window.innerHeight );
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap; // default THREE.PCFShadowMap
     document.body.appendChild( renderer.domElement );
 
     scene = new THREE.Scene();
-    scene.background = new THREE.Color( 0x222222 );
+    scene.background = new THREE.Color( 0.8, 0.8, 0.8 );
 
     camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 0.1, 1000 );
     camera.position.set(0, -20, 1 );
@@ -44,14 +47,35 @@ function initScene() {
     controls = new OrbitControls( camera, renderer.domElement );
     controls.minDistance = 1;
     controls.maxDistance = 500;
-    // controls.dynamicDampingFactor = 0.5;
+
+    // lights
+    const light = new THREE.DirectionalLight( 0xffffff, 0.5 );
+    light.position.set( 0, 0, 5 ); //default; light shining from top
+    light.castShadow = true; // default false
+    light.shadow.mapSize.width = 512; // default
+    light.shadow.mapSize.height = 512; // default
+    light.shadow.camera.near = 0.5; // default
+    light.shadow.camera.far = 500; // default
+    scene.add( light );
 
     let aLight = new THREE.AmbientLight( "rgb(255,255,255)", 0.5 );
     scene.add( aLight );
 
-    let dLight = new THREE.DirectionalLight( "rgb(255,255,255)", 0.5);
-    dLight.translateOnAxis(new THREE.Vector3(1,-1,1), 100);
-    scene.add( dLight );
+    // ground
+    const planeGeometry = new THREE.PlaneGeometry( 1000, 1000);
+    const planeMaterial = new THREE.ShadowMaterial({opacity:0.2});
+    ground = new THREE.Mesh( planeGeometry, planeMaterial);
+    ground.position.z = -0.8;
+    ground.receiveShadow = true;
+    scene.add( ground );
+
+    // grid
+    gridHelper = new THREE.GridHelper( 100, 50 );
+    gridHelper.rotateX(-Math.PI/2);
+    gridHelper.position.z = -0.8;
+    scene.add( gridHelper );
+
+
 
 }
 
@@ -84,11 +108,17 @@ let utils = {
         if (viewer.edittingMesh) {
             utils.enable(gui.checkBoxes.addingPolytope);
             utils.enable(gui.checkBoxes.removingPoly);
+            utils.enable(gui.checkBoxes.setGround);
+            ground.visible = false;
+            gridHelper.visible = false;
 
         }
         else {
             utils.disable(gui.checkBoxes.addingPolytope);
             utils.disable(gui.checkBoxes.removingPoly);
+            utils.disable(gui.checkBoxes.setGround);
+            ground.visible = true;
+            gridHelper.visible = true;
         }
     },
 
@@ -119,14 +149,13 @@ function initGUI() {
 
     shape.add(utils, 'grow');
     shape.add(utils, 'shrink');
+    gui.sliders.length = constraint.add( gui.effect, "constraint", 0, 1, 0.25).listen();
     control.add(model, 'playing').listen();
     control.add(model, 'pressure').listen();
     gui.checkBoxes.edittingMesh = shape.add(viewer, 'edittingMesh').listen();
     gui.checkBoxes.addingPolytope = shape.add(viewer, 'addingPolytope').listen();
     gui.checkBoxes.removingPoly = shape.add(viewer, 'removingPoly').listen();
-
-    // gui.checkBoxes.edittingMesh.onClick
-
+    gui.checkBoxes.setGround = shape.add(viewer, 'setGround').listen();
 
     let effectController = function () {this.constraint = 0;};
     gui.effect = new effectController();
@@ -150,7 +179,7 @@ function initGUI() {
     utils.disable(gui.sliders.constraint);
     utils.disable(gui.checkBoxes.addingPolytope);
     utils.disable(gui.checkBoxes.removingPoly);
-
+    utils.disable(gui.checkBoxes.setGround);
 
     gui.window.domElement.onmouseover = () => {
         utils.mouseOverGUI = true;
@@ -166,22 +195,20 @@ function initGUI() {
 
     gui.checkBoxes.addingPolytope.__checkbox.onclick = gui.checkBoxes.addingPolytope.__li.onclick = () => {
         gui.checkBoxes.removingPoly.setValue(false);
+        gui.checkBoxes.setGround.setValue(false);
     };
 
     gui.checkBoxes.removingPoly.__checkbox.onclick = gui.checkBoxes.removingPoly.__li.onclick = () => {
         gui.checkBoxes.addingPolytope.setValue(false);
+        gui.checkBoxes.setGround.setValue(false);
+    };
+
+    gui.checkBoxes.setGround.__checkbox.onclick = gui.checkBoxes.setGround.__li.onclick = () => {
+        gui.checkBoxes.addingPolytope.setValue(false);
+        gui.checkBoxes.removingPoly.setValue(false);
     }
 
 
-}
-
-function GUIHovered() {
-    if (document.getElementsByClassName('hover').length > 0)
-        return 1;
-    for (let div of document.getElementsByClassName('slider')) {
-        if (div.parentElement.querySelector(':hover')) return 1;
-    }
-    return 0;
 }
 
 function objectCasted() {
@@ -190,7 +217,7 @@ function objectCasted() {
     while (intersects.length > 0) {
         let intersect = intersects.shift().object;
 
-        if (intersect.visible) {
+        if (intersect.visible && intersect !== gridHelper && intersect !== ground) {
 
             return intersect;
         }
@@ -243,6 +270,9 @@ function onMouseClick(event) {
         }
         else if (viewer.removingPoly) {
             model.removePolytope(viewer.idSelected[0]);
+        }
+        else if (viewer.setGround) {
+            model.setGround(viewer.idSelected[0]);
         }
 
         viewer.idSelected = [];

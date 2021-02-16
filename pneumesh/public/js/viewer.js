@@ -26,6 +26,7 @@ class Viewer {
         this.edittingMesh = false;
         this.addingPolytope = false;
         this.removingPoly = false;
+        this.setGround = false;
 
 
         this.typeSelected = [];
@@ -80,6 +81,7 @@ class Viewer {
             let geometry = new thre.CylinderBufferGeometry(1, 1, 1, 20);
             let material = new thre.MeshLambertMaterial( {color: Viewer.beamColor} );
             let beam = new thre.Mesh(geometry, material);
+            beam.castShadow = true;
             beam.visible = false;
             beam.position.copy(new thre.Vector3(1e3, 1e3, 1e3));
 

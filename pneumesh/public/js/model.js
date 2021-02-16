@@ -323,6 +323,27 @@ class Model {
 
     }
 
+    setGround(iFace) {
+        let v0 = this.v[this.faces[iFace][0]];
+        let v1 = this.v[this.faces[iFace][1]];
+        let v2 = this.v[this.faces[iFace][2]];
+
+        let vec01 = v1.clone().sub(v0);
+        let vec12 = v2.clone().sub(v1);
+        let normal = vec01.clone().cross(vec12).normalize();
+
+        let ZNeg = new thre.Vector3(0, 0, -1);
+
+        let axis = normal.clone().cross(ZNeg).normalize();
+
+        let angle = ZNeg.angleTo(axis);
+
+        this.mesh = this.mesh.rotateOnAxis(axis, angle);
+
+        console.log(angle);
+
+    }
+
 
 }
 
