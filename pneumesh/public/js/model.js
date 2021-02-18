@@ -6,10 +6,12 @@ import {Simulator} from './simulator.js'
 
 
 class Model {
-    static k = 0.1;
+    static k = 80;
     static h = 0.1;
-    static dampingRatio = 0.9;
-    static defaultContractionRatio = 0.5;
+    static dampingRatio = 0.6;
+    static defaultContraction = 0.35;
+    static gravityFactor = 9.8 * 0.1;
+    static gravity = 1;
 
     constructor() {
         this.mesh = new thre.Object3D();
@@ -18,7 +20,7 @@ class Model {
         this.v = [];  // vertex positions: nV x 3
         this.v0 = [];
         this.e = [];  // edge positions: nE x 2
-        this.l0 = []; // original lengths: nE
+        this.lm = []; // maximum length
         this.constraints = [];  // percentage of constraints: nE
         this.l = [];
         this.vel = [];  // vertex velocities: nV x 3
@@ -35,10 +37,10 @@ class Model {
     }
 
     init() {
-        this.v.push(new thre.Vector3(-1, 0, -1 / Math.sqrt(2)));
-        this.v.push(new thre.Vector3(1, 0, -1 / Math.sqrt(2)));
-        this.v.push(new thre.Vector3(0, 1, 1 / Math.sqrt(2)));
-        this.v.push(new thre.Vector3(0, -1, 1 / Math.sqrt(2)));
+        this.v.push(new thre.Vector3(1, -1/Math.sqrt(3), 0.2));
+        this.v.push(new thre.Vector3(0, 2/Math.sqrt(3), 0.2));
+        this.v.push(new thre.Vector3(-1, -1/Math.sqrt(3), 0.2));
+        this.v.push(new thre.Vector3(0, 0, 4/Math.sqrt(6) + 0.2));
 
         this.e.push([0, 1]);
         this.e.push([1, 2]);
@@ -92,14 +94,14 @@ class Model {
         }
 
         if (updateAll) {
-            this.l0 = Array.from(this.l);
+            this.lm = Array.from(this.l);
             for (let i=0; i<this.e.length; i++) {
-                this.l0[i] *= 2;
+                this.lm[i] /= 1 - Model.defaultContraction;
             }
 
             this.constraints = new Array(this.e.length).fill(0);
-
         }
+
     }
 
     update() {
@@ -117,26 +119,46 @@ class Model {
             let v1 = this.v[e[1]];
 
             let vec = v1.clone().sub(v0); // from 0 to 1
-            let l0 = this.l0[i] * (1 - (1 - this.constraints[i] / 0.3) * 0.5 * (1 - this.inflate));
+            let l0 = this.lm[i];
+            if (!this.inflate) {
+                l0 = l0 * (1 - (Model.defaultContraction - this.constraints[i]));
+            }
 
-            let f = (vec.length() - l0) * Model.k * (this.inflate + this.deflate);
+
+            let f = (vec.length() - l0) * Model.k;
             f = vec.normalize().multiplyScalar(f);  // from 0 to 1
             this.f[e[0]].add(f);
             this.f[e[1]].add(f.negate());
         }
+
+        // gravity
+        for (let i=0; i<this.v.length; i++) {
+            this.f[i].add(new thre.Vector3(0, 0, -Model.gravityFactor * Model.gravity));
+        }
+
     }
 
     step(n=1) {
         if (!this.simulate) {return}
 
-        this.update();
-
         for (let iStep=0; iStep<n; iStep++) {
+            this.update();
+
             for (let i=0; i<this.v.length; i++) {
                 this.vel[i].add(this.f[i].clone().multiplyScalar(Model.h));
                 this.vel[i].multiplyScalar(Model.dampingRatio);   // damping
                 this.v[i].add(this.vel[i].clone().multiplyScalar(Model.h));
             }
+
+            for (let i=0; i<this.v.length; i++) {
+                if (this.v[i].z < 0)
+                {
+                    this.v[i].z = 0;
+                    this.vel[i].z = -this.vel[i].z;
+                }
+            }
+
+
         }
     }
 
@@ -358,9 +380,7 @@ class Model {
         let angle = ZNeg.angleTo(axis);
 
         this.mesh = this.mesh.rotateOnAxis(axis, angle);
-        this.mesh =
 
-        console.log(angle);
 
     }
 

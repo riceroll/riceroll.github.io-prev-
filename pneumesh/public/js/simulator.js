@@ -6,7 +6,7 @@ class Simulator {
     this.v = [...v];
     this.e = [...e];
     this.constraints = [...constraints];
-    this.l0 = [...l0];
+    this.lm = [...l0];
 
     this.vel = [...vel];
 
@@ -21,10 +21,10 @@ class Simulator {
 
     for (let i_step=0; i_step<n; i_step++) {
 
-      for (let i = 0; i < this.l0.length; i++) {
+      for (let i = 0; i < this.lm.length; i++) {
         let scale = (1 - this.constraints[i]) * 0.5 + 1;
 
-        let l_target = this.l0[i] * scale;
+        let l_target = this.lm[i] * scale;
         let l = this.v[this.e[i][0]].distanceTo(this.v[this.e[i][1]]);
         let f_beam = this.k * (l - l_target);   // contraction force
 

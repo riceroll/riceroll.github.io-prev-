@@ -65,14 +65,14 @@ function initScene() {
     const planeGeometry = new THREE.PlaneGeometry( 1000, 1000);
     const planeMaterial = new THREE.ShadowMaterial({opacity:0.2});
     ground = new THREE.Mesh( planeGeometry, planeMaterial);
-    ground.position.z = -0.8;
+    ground.position.z = 0;
     ground.receiveShadow = true;
     scene.add( ground );
 
     // grid
     gridHelper = new THREE.GridHelper( 100, 50 );
     gridHelper.rotateX(-Math.PI/2);
-    gridHelper.position.z = -0.8;
+    gridHelper.position.z = 0;
     scene.add( gridHelper );
 
 
@@ -88,7 +88,7 @@ let utils = {
             let type = viewer.typeSelected[i];
             let id = viewer.idSelected[i];
             if (type === "beam") {
-                model.l0[id] += 0.1;
+                model.lm[id] += 0.1;
             }
         }
     },
@@ -99,7 +99,7 @@ let utils = {
             let type = viewer.typeSelected[i];
             let id = viewer.idSelected[i];
             if (type === "beam") {
-                model.l0[id] -= 0.1;
+                model.lm[id] -= 0.1;
             }
         }
     },
@@ -109,6 +109,7 @@ let utils = {
             utils.enable(gui.checkBoxes.addingPolytope);
             utils.enable(gui.checkBoxes.removingPoly);
             utils.enable(gui.checkBoxes.setGround);
+            Model.gravity = 0;
             ground.visible = false;
             gridHelper.visible = false;
 
@@ -118,6 +119,7 @@ let utils = {
             utils.disable(gui.checkBoxes.addingPolytope);
             utils.disable(gui.checkBoxes.removingPoly);
             utils.disable(gui.checkBoxes.setGround);
+            Model.gravity = 1;
             ground.visible = true;
             gridHelper.visible = true;
         }
@@ -156,7 +158,7 @@ function initGUI() {
     gui.checkBoxes.inflate = control.add(model, 'inflate').listen();
     gui.checkBoxes.deflate = control.add(model, 'deflate').listen();
 
-    simulation.add(model, 'simulate').listen();
+    gui.checkBoxes.simulate = simulation.add(model, 'simulate').listen();
 
     gui.checkBoxes.edittingMesh = shape.add(viewer, 'edittingMesh').listen();
     gui.checkBoxes.addingPolytope = shape.add(viewer, 'addingPolytope').listen();
@@ -167,7 +169,8 @@ function initGUI() {
 
     let effectController = function () {this.constraint = 0;};
     gui.effect = new effectController();
-    gui.sliders.constraint = constraint.add( gui.effect, "constraint", 0, 0.3, 0.3/4).listen();
+    gui.sliders.constraint = constraint.add( gui.effect, "constraint",
+                                            0, Model.defaultContraction, Model.defaultContraction/4).listen();
 
 
     shape.open();
@@ -189,6 +192,8 @@ function initGUI() {
     utils.disable(gui.checkBoxes.addingPolytope);
     utils.disable(gui.checkBoxes.removingPoly);
     utils.disable(gui.checkBoxes.setGround);
+    gui.checkBoxes.deflate.setValue(true);
+    gui.checkBoxes.simulate.setValue(true);
 
     gui.window.domElement.onmouseover = () => {
         utils.mouseOverGUI = true;
