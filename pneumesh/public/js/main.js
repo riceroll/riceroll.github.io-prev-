@@ -4,11 +4,16 @@ import { GUI } from '../../node_modules/three/examples/jsm/libs/dat.gui.module.j
 
 import { Model } from './model.js';
 import { Viewer } from './viewer.js';
+import { Remesher } from './remesher.js';
 
 let camera, scene, renderer, controls;
 let mouse = new THREE.Vector2();
 let raycaster = new THREE.Raycaster();
 let gui;
+let dashboard = {};
+let information;
+let infoJoints, infoBeams;
+let inputFileString;
 
 let gridHelper;
 let ground;
@@ -70,7 +75,7 @@ function initScene() {
     scene.add( ground );
 
     // grid
-    gridHelper = new THREE.GridHelper( 100, 50 );
+    gridHelper = new THREE.GridHelper( 100, 100 );
     gridHelper.rotateX(-Math.PI/2);
     gridHelper.position.z = 0;
     scene.add( gridHelper );
@@ -105,10 +110,9 @@ let utils = {
     },
 
     updateGUI: ()=>{
-        if (viewer.edittingMesh) {
+        if (viewer.editingMesh) {
             utils.enable(gui.checkBoxes.addingPolytope);
             utils.enable(gui.checkBoxes.removingPoly);
-            utils.enable(gui.checkBoxes.setGround);
             Model.gravity = 0;
             ground.visible = false;
             gridHelper.visible = false;
@@ -118,7 +122,6 @@ let utils = {
         else {
             utils.disable(gui.checkBoxes.addingPolytope);
             utils.disable(gui.checkBoxes.removingPoly);
-            utils.disable(gui.checkBoxes.setGround);
             Model.gravity = 1;
             ground.visible = true;
             gridHelper.visible = true;
@@ -139,44 +142,93 @@ let utils = {
         obj.__li.style.opacity = 1.;
     },
 
+    lookAtCenter: ()=>{
+        controls.target = model.centroid();
+    },
+
+    info: ()=>{
+        infoJoints.name(model.infoJoints());
+        infoBeams.name(model.infoBeams());
+    },
+
+    fixJoints: ()=>{
+        let ids = [];
+        for (let i=0; i<viewer.idSelected.length; i++){
+            if (viewer.typeSelected[i] === "joint") {
+                ids.push(viewer.idSelected[i]);
+            }
+        }
+        model.fixJoints(ids);
+    },
+
+    unfixAll: ()=>{
+        model.unfixAll();
+    },
+
+    remesh: ()=>{
+        let numFiles = document.getElementById("inputFile").files.length;
+        if (numFiles === 1) {
+            let reader = new FileReader();
+            reader.onload = (e) => {
+                inputFileString = e.target.result;
+                window.inputFileString = inputFileString;
+            };
+            reader.readAsText(document.getElementById("inputFile").files[0]);
+        }
+    },
+
 };
 
 function initGUI() {
+    dashboard = {};
+    dashboard.window = new GUI({name: 'hehe', autoPlace : false});
+    // let information = dashboard.window.addFolder('Information');
+    // information.add()
+
     gui = {};
     gui.sliders = {};
     gui.checkBoxes = {};
     gui.window = new GUI();
+    let remesh = gui.window.addFolder('remesh');
     let shape = gui.window.addFolder('shape');
-    let constraint = gui.window.addFolder('constraint');
     let control = gui.window.addFolder('control');
     let simulation = gui.window.addFolder('simulation');
+    let cameraFolder = gui.window.addFolder('camera');
+    information = gui.window.addFolder('information');
 
-    shape.add(utils, 'grow');
-    shape.add(utils, 'shrink');
-    // gui.sliders.length = constraint.add( gui.effect, "length", 0, 0.3, 0.3/4).listen();
+    let effectController = function () {this.constraint = 0; this.length = 0;};
+    gui.effect = new effectController();
+
 
     gui.checkBoxes.inflate = control.add(model, 'inflate').listen();
     gui.checkBoxes.deflate = control.add(model, 'deflate').listen();
 
     gui.checkBoxes.simulate = simulation.add(model, 'simulate').listen();
 
-    gui.checkBoxes.edittingMesh = shape.add(viewer, 'edittingMesh').listen();
+    gui.checkBoxes.editingMesh = shape.add(viewer, 'editingMesh').listen();
     gui.checkBoxes.addingPolytope = shape.add(viewer, 'addingPolytope').listen();
     gui.checkBoxes.removingPoly = shape.add(viewer, 'removingPoly').listen();
-    gui.checkBoxes.setGround = shape.add(viewer, 'setGround').listen();
+
+    remesh.add(utils, 'remesh');
+    shape.add(utils, 'fixJoints');
+    shape.add(utils, 'unfixAll');
+    cameraFolder.add(utils, 'lookAtCenter');
+    information.add(utils, 'info');
+    infoJoints = information.__controllers[0];
+    information.add(utils, 'info');
+    infoBeams = information.__controllers[1];
 
 
-
-    let effectController = function () {this.constraint = 0;};
-    gui.effect = new effectController();
-    gui.sliders.constraint = constraint.add( gui.effect, "constraint",
+    gui.sliders.length = shape.add( gui.effect, "length", -0.2, 0.2, 0.1).listen();
+    gui.sliders.constraint = shape.add( gui.effect, "constraint",
                                             0, Model.defaultContraction, Model.defaultContraction/4).listen();
 
-
+    remesh.open();
     shape.open();
-    constraint.open();
     control.open();
     simulation.open();
+    cameraFolder.open();
+    information.open();
 
     // gui functions =============================================
     // constraints
@@ -187,11 +239,18 @@ function initGUI() {
             }
         }
     });
+    gui.sliders.length.onChange(function(value) {
+        for (let i=0; i<viewer.idSelected.length; i++) {
+            if (viewer.typeSelected[i] === 'beam') {
+                model.lm[viewer.idSelected[i]] = Model.defaultMaxLength + value;
+            }
+        }
+    });
 
     utils.disable(gui.sliders.constraint);
+    utils.disable(gui.sliders.length);
     utils.disable(gui.checkBoxes.addingPolytope);
     utils.disable(gui.checkBoxes.removingPoly);
-    utils.disable(gui.checkBoxes.setGround);
     gui.checkBoxes.deflate.setValue(true);
     gui.checkBoxes.simulate.setValue(true);
 
@@ -209,18 +268,12 @@ function initGUI() {
 
     gui.checkBoxes.addingPolytope.__checkbox.onclick = gui.checkBoxes.addingPolytope.__li.onclick = () => {
         gui.checkBoxes.removingPoly.setValue(false);
-        gui.checkBoxes.setGround.setValue(false);
     };
 
     gui.checkBoxes.removingPoly.__checkbox.onclick = gui.checkBoxes.removingPoly.__li.onclick = () => {
         gui.checkBoxes.addingPolytope.setValue(false);
-        gui.checkBoxes.setGround.setValue(false);
     };
 
-    gui.checkBoxes.setGround.__checkbox.onclick = gui.checkBoxes.setGround.__li.onclick = () => {
-        gui.checkBoxes.addingPolytope.setValue(false);
-        gui.checkBoxes.removingPoly.setValue(false);
-    };
 
     gui.checkBoxes.inflate.__checkbox.onclick = gui.checkBoxes.inflate.__li.onclick = () => {
         if (! model.inflate) {
@@ -233,7 +286,6 @@ function initGUI() {
             gui.checkBoxes.inflate.setValue(false);
         }
     }
-
 
 }
 
@@ -270,6 +322,7 @@ function onMouseClick(event) {
     }
 
     utils.disable(gui.sliders.constraint);
+    utils.disable(gui.sliders.length);
     let obj = objectCasted();
     if (!obj) return 0;
 
@@ -284,21 +337,19 @@ function onMouseClick(event) {
     // slider
     if (viewer.idSelected.length === 1 && viewer.typeSelected[0] === 'beam') {
         gui.sliders.constraint.setValue(model.constraints[viewer.idSelected[0]]);
+        gui.sliders.length.setValue(Math.round(model.lm[viewer.idSelected[0]] - Model.defaultMaxLength));
     }
     if (viewer.typeSelected.includes("beam")) {
         utils.enable(gui.sliders.constraint);
+        utils.enable(gui.sliders.length);
     }
 
-    if (viewer.edittingMesh && viewer.idSelected.length === 1 && viewer.typeSelected[0] === "face") {
-
+    if (viewer.editingMesh && viewer.idSelected.length === 1 && viewer.typeSelected[0] === "face") {
         if (viewer.addingPolytope) {
             model.addPolytope(viewer.idSelected[0]);
         }
         else if (viewer.removingPoly) {
             model.removePolytope(viewer.idSelected[0]);
-        }
-        else if (viewer.setGround) {
-            model.setGround(viewer.idSelected[0]);
         }
 
         model.recordV();
@@ -308,16 +359,14 @@ function onMouseClick(event) {
         viewer.createAll();
 
     }
-
-
 }
+
 
 function onMouseMove( event ) {
     mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
     mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
 
     let obj = objectCasted();
-
 
 }
 
@@ -338,6 +387,8 @@ function animate() {
 
     model.step();
     viewer.updateMeshes();
+    infoJoints.name(model.infoJoints());
+    infoBeams.name(model.infoBeams());
 
     // put render right before requestAnimationFrame, it will do scene.updateMatrixWorld() for raytracing
     renderer.render( scene, camera );
@@ -349,7 +400,6 @@ function animate() {
 
 initGUI();
 initScene();
-
 scene.add(viewer.mesh);
 
 animate();

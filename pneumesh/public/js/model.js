@@ -12,6 +12,9 @@ class Model {
     static defaultContraction = 0.35;
     static gravityFactor = 9.8 * 0.1;
     static gravity = 1;
+    static defaultMinLength = 1.2;
+    static defaultMaxLength = Model.defaultMinLength / (1 - Model.defaultContraction);
+    static frictionFactor = 0.8;
 
     constructor() {
         this.mesh = new thre.Object3D();
@@ -25,6 +28,7 @@ class Model {
         this.l = [];
         this.vel = [];  // vertex velocities: nV x 3
         this.f = [];  // vertex forces: nV x 3
+        this.fixedVs = [];  // id of vertices that are fixed
 
         this.faces = [];
         this.polytopes = [];
@@ -36,29 +40,50 @@ class Model {
         this.init();
     }
 
+    setMesh(v, e, f, p){
+        if (v) {
+            this.v = v;
+            this.e = e;
+            this.faces = f;
+            this.polytopes = p;
+        }
+        else{
+            this.v.push(new thre.Vector3(1, -1/Math.sqrt(3), 0.2));
+            this.v.push(new thre.Vector3(0, 2/Math.sqrt(3), 0.2));
+            this.v.push(new thre.Vector3(-1, -1/Math.sqrt(3), 0.2));
+            this.v.push(new thre.Vector3(0, 0, 4/Math.sqrt(6) + 0.2));
+
+            this.e.push([0, 1]);
+            this.e.push([1, 2]);
+            this.e.push([2, 0]);
+            this.e.push([0, 3]);
+            this.e.push([1, 3]);
+            this.e.push([2, 3]);
+
+            this.faces = [
+                [0, 2, 1],
+                [0, 1, 3],
+                [1, 2, 3],
+                [2, 0, 3]
+            ];
+
+            this.polytopes = [
+                [0, 1, 2, 3]
+            ];
+        }
+    }
+
+
+
     init() {
-        this.v.push(new thre.Vector3(1, -1/Math.sqrt(3), 0.2));
-        this.v.push(new thre.Vector3(0, 2/Math.sqrt(3), 0.2));
-        this.v.push(new thre.Vector3(-1, -1/Math.sqrt(3), 0.2));
-        this.v.push(new thre.Vector3(0, 0, 4/Math.sqrt(6) + 0.2));
+        this.setMesh();
 
-        this.e.push([0, 1]);
-        this.e.push([1, 2]);
-        this.e.push([2, 0]);
-        this.e.push([0, 3]);
-        this.e.push([1, 3]);
-        this.e.push([2, 3]);
-
-        this.faces = [
-            [0, 2, 1],
-            [0, 1, 3],
-            [1, 2, 3],
-            [2, 0, 3]
-        ];
-
-        this.polytopes = [
-            [0, 1, 2, 3]
-        ];
+        // rescale
+        let currentLm = this.v[0].distanceTo(this.v[1]) / (1 - Model.defaultContraction);
+        for (let i=0; i<this.v.length; i++) {
+            this.v[i].divideScalar(currentLm);
+            this.v[i].multiplyScalar(Model.defaultMaxLength);
+        }
 
         this.updateL(true);
 
@@ -85,12 +110,11 @@ class Model {
         }
     }
 
-
     updateL(updateAll = false) {
         this.l = [];
         for (let i=0; i<this.e.length; i++) {
             let e = this.e[i];
-            this.l.push(this.v[e[0]].clone().sub(this.v[e[1]]).length());
+            this.l.push(this.v[e[0]].distanceTo(this.v[e[1]]));
         }
 
         if (updateAll) {
@@ -98,10 +122,8 @@ class Model {
             for (let i=0; i<this.e.length; i++) {
                 this.lm[i] /= 1 - Model.defaultContraction;
             }
-
             this.constraints = new Array(this.e.length).fill(0);
         }
-
     }
 
     update() {
@@ -136,6 +158,16 @@ class Model {
             this.f[i].add(new thre.Vector3(0, 0, -Model.gravityFactor * Model.gravity));
         }
 
+        // friction
+        for (let i=0; i<this.v.length; i++) {
+            if (this.v[i].z < 1e-2 && this.f[i].z < 0) {
+                let f = this.vel[i].clone();
+                f.z = 0;
+                let N = this.f[i].z;
+                f = f.multiplyScalar(-Model.frictionFactor * N);
+                this.f[i].add(f);
+            }
+        }
     }
 
     step(n=1) {
@@ -145,10 +177,13 @@ class Model {
             this.update();
 
             for (let i=0; i<this.v.length; i++) {
-                this.vel[i].add(this.f[i].clone().multiplyScalar(Model.h));
-                this.vel[i].multiplyScalar(Model.dampingRatio);   // damping
-                this.v[i].add(this.vel[i].clone().multiplyScalar(Model.h));
+                if (!this.fixedVs.includes(i)) {
+                    this.vel[i].add(this.f[i].clone().multiplyScalar(Model.h));
+                    this.vel[i].multiplyScalar(Model.dampingRatio);   // damping
+                    this.v[i].add(this.vel[i].clone().multiplyScalar(Model.h));
+                }
             }
+
 
             for (let i=0; i<this.v.length; i++) {
                 if (this.v[i].z < 0)
@@ -163,72 +198,79 @@ class Model {
     }
 
     addPolytope(iFace) {
-        // find the other face sharing the edge
-        let containing = (iFace, iEdge) => {
-            let v0 = this.e[iEdge][0];
-            let v1 = this.e[iEdge][1];
-            let f = this.faces[iFace];
+        if (0) {
 
-            return f.includes(v0) && f.includes(v1)
-        };
+            // find the other face sharing the edge
+            let containing = (iFace, iEdge) => {
+                let v0 = this.e[iEdge][0];
+                let v1 = this.e[iEdge][1];
+                let f = this.faces[iFace];
 
-        let neighboring = (iFace0, iFace1) => {
-            if (iFace0 === iFace1) return false;
+                return f.includes(v0) && f.includes(v1)
+            };
 
-            for (let ie=0; ie<this.e.length; ie++) {
-                if (containing(iFace0, ie) && containing(iFace1, ie)) {
-                    return true;
-                }
-            }
-            return false;
-        };
+            let neighboring = (iFace0, iFace1) => {
+                if (iFace0 === iFace1) return false;
 
-        // distance between the two nodes of two faces
-        let farestDistance = (iFace0, iFace1) => {
-            let f0 = this.faces[iFace0];
-            let f1 = this.faces[iFace1];
-
-            let iv0 = -1;
-            let iv1 = -1;
-            for (let iv of f0) {
-                if (!f1.includes(iv)) {iv0 = iv}
-            }
-            for (let iv of f1) {
-                if (!f0.includes(iv)) {iv1 = iv}
-            }
-
-            let dist = this.v[iv0].distanceTo(this.v[iv1]);
-
-            return [dist, iv0, iv1];
-        };
-
-        // merge poly
-        let added = false;
-        for (let iF=0; iF<this.faces.length; iF++) {
-            if (neighboring(iFace, iF)) {
-                let [distance, iv0, iv1] = farestDistance(iFace, iF);
-                if (distance < 2.5) {
-                    // merge new polytope
-                    // TODO
-                    let e = [iv0, iv1];
-                    let exist = false;
-                    for (let edge of this.e) {
-                        if ((edge[0] === e[0] && edge[1] === e[1]) ||
-                            (edge[0] === e[1] && edge[1] === e[0])) {
-                            exist = true;
-                        }
+                for (let ie = 0; ie < this.e.length; ie++) {
+                    if (containing(iFace0, ie) && containing(iFace1, ie)) {
+                        return true;
                     }
-                    if (!exist) {
+                }
+                return false;
+            };
+
+            // distance between the two nodes of two faces
+            let farestDistance = (iFace0, iFace1) => {
+                let f0 = this.faces[iFace0];
+                let f1 = this.faces[iFace1];
+
+                let iv0 = -1;
+                let iv1 = -1;
+                for (let iv of f0) {
+                    if (!f1.includes(iv)) {
+                        iv0 = iv
+                    }
+                }
+                for (let iv of f1) {
+                    if (!f0.includes(iv)) {
+                        iv1 = iv
+                    }
+                }
+
+                let dist = this.v[iv0].distanceTo(this.v[iv1]);
+
+                return [dist, iv0, iv1];
+            };
+
+            // merge poly
+            let added = false;
+            for (let iF = 0; iF < this.faces.length; iF++) {
+                if (neighboring(iFace, iF)) {
+                    let [distance, iv0, iv1] = farestDistance(iFace, iF);
+                    if (distance < 2.5) {
+                        // merge new polytope
                         // TODO
-                        this.e.push(e);
-                        added = true;
+                        let e = [iv0, iv1];
+                        let exist = false;
+                        for (let edge of this.e) {
+                            if ((edge[0] === e[0] && edge[1] === e[1]) ||
+                                (edge[0] === e[1] && edge[1] === e[0])) {
+                                exist = true;
+                            }
+                        }
+                        if (!exist) {
+                            // TODO
+                            this.e.push(e);
+                            added = true;
+                        }
                     }
                 }
             }
         }
 
         // add polytope
-        if (!added) {
+        if (1) {
             let face = this.faces[iFace];
             let v0 = this.v[face[0]];
             let v1 = this.v[face[1]];
@@ -236,7 +278,7 @@ class Model {
             let centroid = v0.clone().add(v1).add(v2).divideScalar(3);
             let vec01 = v1.clone().sub(v0);
             let vec12 = v2.clone().sub(v1);
-            let height = Math.sqrt(3) / 2 * 2;
+            let height = Math.sqrt(3) / 2 * Model.defaultMinLength;
             let v4 = centroid.add(vec01.cross(vec12).normalize().multiplyScalar(height));
             this.v.push(v4);
             this.f.push(new thre.Vector3());
@@ -359,30 +401,43 @@ class Model {
                 this.polytopes.splice(j, 1);
             }
         }
-
-
-
     }
 
-    setGround(iFace) {
-        let v0 = this.v[this.faces[iFace][0]];
-        let v1 = this.v[this.faces[iFace][1]];
-        let v2 = this.v[this.faces[iFace][2]];
-
-        let vec01 = v1.clone().sub(v0);
-        let vec12 = v2.clone().sub(v1);
-        let normal = vec01.clone().cross(vec12).normalize();
-
-        let ZNeg = new thre.Vector3(0, 0, -1);
-
-        let axis = normal.clone().cross(ZNeg).normalize();
-
-        let angle = ZNeg.angleTo(axis);
-
-        this.mesh = this.mesh.rotateOnAxis(axis, angle);
-
-
+    centroid() {
+        let center = new thre.Vector3(0, 0, 0);
+        for (let v of this.v) {
+            center.add(v);
+        }
+        center.divideScalar(this.v.length);
+        return center;
     }
+
+    infoJoints() {
+        return 'joints: '+ this.v.length;
+    }
+
+    infoBeams() {
+        return 'actuators: ' + this.e.length;
+    }
+
+    fixJoints(ids) {
+        for (let i=0; i<ids.length; i++) {
+            let id = ids[i];
+            if (viewer.typeSelected[i] === "joint") {
+                if (!this.fixedVs.includes(id)) {
+                    this.fixedVs.push(id);
+                }
+            }
+        }
+    }
+
+    unfixAll() {
+        this.fixedVs = [];
+    }
+
+
+
+
 
 
 }

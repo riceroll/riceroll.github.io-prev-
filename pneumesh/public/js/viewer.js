@@ -14,6 +14,7 @@ class Viewer {
     static beamColor = new thre.Color(1, 1, 1);
     static faceColor = new thre.Color(1, 1, 1);
     static selectedColor = new thre.Color(0.8, 0.2, 0.2);
+    static fixedColor = new thre.Color(0.2, 0.8, 0.8);
 
     constructor(model) {
         this.model = model;
@@ -22,7 +23,7 @@ class Viewer {
         this.mesh = new thre.Object3D();
 
         this.pressingMeta = false;
-        this.edittingMesh = false;
+        this.editingMesh = false;
         this.addingPolytope = false;
         this.removingPoly = false;
         this.setGround = false;
@@ -46,7 +47,7 @@ class Viewer {
         this.mesh.add(this.beams);
         this.mesh.add(this.faces);
 
-        this.typeMap = {
+        this.typeMapToList = {
             'joint': this.joints,
             'beam': this.beams,
             'face': this.faces
@@ -166,7 +167,7 @@ class Viewer {
             this.faces.children[i].visible = false;
         }
         for (let i=0; i<this.model.faces.length; i++) {
-            if (this.edittingMesh) {
+            if (this.editingMesh) {
                 this.faces.children[i].visible = true;
             }
             const indices = Array.from(this.model.faces[i]);
@@ -178,14 +179,19 @@ class Viewer {
             this.faces.children[i].material.color.copy(Viewer.faceColor);
         }
 
+        // update fixed color
+        for (let i=0; i<this.model.fixedVs.length; i++) {
+            let id = this.model.fixedVs[i];
+            this.typeMapToList["joint"].children[id].material.color.copy(Viewer.fixedColor);
+        }
+
         // update selection color
         for (let i=0; i<this.idSelected.length; i++) {
             let id = this.idSelected[i];
             let type = this.typeSelected[i];
 
-            this.typeMap[type].children[id].material.color.copy(Viewer.selectedColor);
+            this.typeMapToList[type].children[id].material.color.copy(Viewer.selectedColor);
         }
-
 
     }
 
