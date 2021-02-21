@@ -1,9 +1,4 @@
 import * as thre from '../../node_modules/three/build/three.module.js';
-import {Joint} from './joint.js'
-import {Beam} from './beam.js'
-import {Simulator} from './simulator.js'
-// import {DenseMatrix} from '../../lib/geometry-processing-js/linear-algebra/dense-matrix.js'
-
 
 class Model {
     static k = 80;
@@ -25,10 +20,12 @@ class Model {
         this.e = [];  // edge positions: nE x 2
         this.lm = []; // maximum length
         this.constraints = [];  // percentage of constraints: nE
-        this.l = [];
+        this.l = [];    // current length of beams: nE
         this.vel = [];  // vertex velocities: nV x 3
         this.f = [];  // vertex forces: nV x 3
         this.fixedVs = [];  // id of vertices that are fixed
+        this.edgeChannel = [];  // id of beam edgeChannel: nE
+        this.edgeActive = [];  // if beam is active: nE
 
         this.faces = [];
         this.polytopes = [];
@@ -36,6 +33,14 @@ class Model {
         this.simulate = false;
         this.inflate = false;
         this.deflate = false;
+
+        this.numChannels = 2;
+
+        this.inflateChannel = new Array(this.numChannels).fill(false);
+        this.deflateChannel = new Array(this.numChannels).fill(true);
+
+        this.inflates = [];
+        this.deflates = [];
 
         this.init();
     }
@@ -85,6 +90,7 @@ class Model {
             this.v[i].multiplyScalar(Model.defaultMaxLength);
         }
 
+        // update other values
         this.updateL(true);
 
         this.vel = [];
@@ -122,8 +128,12 @@ class Model {
             for (let i=0; i<this.e.length; i++) {
                 this.lm[i] /= 1 - Model.defaultContraction;
             }
+
             this.constraints = new Array(this.e.length).fill(0);
+            this.edgeChannel = new Array(this.e.length).fill(0);
+            this.edgeActive = new Array(this.e.length).fill(true);
         }
+
     }
 
     update() {
@@ -142,7 +152,8 @@ class Model {
 
             let vec = v1.clone().sub(v0); // from 0 to 1
             let l0 = this.lm[i];
-            if (!this.inflate) {
+
+            if (this.edgeActive[i] && this.deflateChannel[this.edgeChannel[i]]) {
                 l0 = l0 * (1 - (Model.defaultContraction - this.constraints[i]));
             }
 
@@ -401,6 +412,8 @@ class Model {
                 this.polytopes.splice(j, 1);
             }
         }
+
+        this.updateL(true);
     }
 
     centroid() {

@@ -1,0 +1,6 @@
+.listHorizontal {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-around;
+    color: #b6d8cf;
+}

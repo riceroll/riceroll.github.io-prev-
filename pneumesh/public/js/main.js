@@ -18,7 +18,6 @@ let inputFileString;
 let gridHelper;
 let ground;
 
-
 let model = new Model();
 let viewer = new Viewer(model);
 
@@ -88,27 +87,6 @@ function initScene() {
 let utils = {
     mouseOverGUI : false,
 
-    grow: ()=>{
-        for (let i=0; i<viewer.idSelected.length; i++) {
-            let type = viewer.typeSelected[i];
-            let id = viewer.idSelected[i];
-            if (type === "beam") {
-                model.lm[id] += 0.1;
-            }
-        }
-    },
-
-
-    shrink: ()=>{
-        for (let i=0; i<viewer.idSelected.length; i++) {
-            let type = viewer.typeSelected[i];
-            let id = viewer.idSelected[i];
-            if (type === "beam") {
-                model.lm[id] -= 0.1;
-            }
-        }
-    },
-
     updateGUI: ()=>{
         if (viewer.editingMesh) {
             utils.enable(gui.checkBoxes.addingPolytope);
@@ -120,26 +98,31 @@ let utils = {
             model.resetV();
         }
         else {
-            utils.disable(gui.checkBoxes.addingPolytope);
-            utils.disable(gui.checkBoxes.removingPoly);
+            utils.disable(gui.checkBoxes.addingPolytope, true);
+            utils.disable(gui.checkBoxes.removingPoly, true);
             Model.gravity = 1;
             ground.visible = true;
             gridHelper.visible = true;
         }
     },
 
-    disable: (obj)=>{
+    disable: (obj, hide=false)=>{
         try{
             obj.setValue(0);
         }
         catch(e) {}
         obj.__li.style.pointerEvents = "none";
         obj.__li.style.opacity = .5;
+
+        if (hide) {
+            obj.__li.hidden = true;
+        }
     },
 
     enable: (obj)=>{
         obj.__li.style.pointerEvents = "";
         obj.__li.style.opacity = 1.;
+        obj.__li.hidden = false;
     },
 
     lookAtCenter: ()=>{
@@ -165,7 +148,61 @@ let utils = {
         model.unfixAll();
     },
 
+    passive: ()=>{
+        for (let i=0; i<viewer.idSelected.length; i++){
+            if (viewer.typeSelected[i] === "beam") {
+                model.edgeActive[viewer.idSelected[i]] = false;
+            }
+        }
+        utils.enable(gui.sliders.length);
+        utils.disable(gui.sliders.constraint);
+
+    },
+
+    active: ()=>{
+        for (let i=0; i<viewer.idSelected.length; i++){
+            if (viewer.typeSelected[i] === "beam") {
+                model.edgeActive[viewer.idSelected[i]] = true;
+            }
+        }
+        utils.enable(gui.sliders.constraint);
+        utils.disable(gui.sliders.length);
+    },
+
+    horizontalize: (controller, checkbox=true)=>{
+        let ul = controller.domElement.children[0];
+        ul.className = "listHorizontal";
+        ul.children[0].className = "";
+        for (let i=0; i<ul.children.length; i++) {
+            ul.children[i].style.width = (1. / (ul.children.length - 1) * 50).toString() + '%';
+            ul.children[i].style.border = "0px";
+            ul.children[i].style.padding = "0px";
+            ul.children[i].style.margin = "0px";
+            try {
+                // ul.children[i].children[0].style.paddingLeft = "5px";
+                // ul.children[i].children[0].style.width = "30%";
+                ul.children[i].children[0].children[1].style.width = "1px";
+                if (!checkbox) {
+                    ul.children[i].children[0].children[0].style.width = "100%";
+                    ul.children[i].children[0].children[0].style.textAlign = "center";
+                }
+            }
+            catch (e) {}
+            if (i !== 0) {
+                ul.children[i].style.borderLeft = "0px";
+            }
+        }
+        ul.children[0].style.width = "50%";
+        ul.children[0].style.pointerEvents = "none";
+        ul.children[0].style.textIndent = "7px";
+    },
+
     remesh: ()=>{
+
+    },
+
+    load: ()=>{
+        document.getElementById("inputFile").click();
         let numFiles = document.getElementById("inputFile").files.length;
         if (numFiles === 1) {
             let reader = new FileReader();
@@ -177,7 +214,27 @@ let utils = {
         }
     },
 
+    save: ()=>{
+
+    },
+
+    selectChannel : (id)=>{
+        for (let i=0; i<viewer.idSelected.length; i++){
+            if (viewer.typeSelected[i] === "beam") {
+                model.edgeChannel[viewer.idSelected[i]] = id;
+            }
+        }
+    },
+
+    chooseChannel: {
+        '0': (i=0)=>{utils.selectChannel(i)},
+        '1': (i=1)=>{utils.selectChannel(i)},
+        '2': (i=2)=>{utils.selectChannel(i)},
+        '3': (i=3)=>{utils.selectChannel(i)}
+    }
 };
+
+
 
 function initGUI() {
     dashboard = {};
@@ -188,46 +245,95 @@ function initGUI() {
     gui = {};
     gui.sliders = {};
     gui.checkBoxes = {};
+    gui.buttons = {};
+    gui.folders = {};
     gui.window = new GUI();
-    let remesh = gui.window.addFolder('remesh');
+
+    let file = gui.window.addFolder('file');
+    file.add(utils, 'load');
+    file.add(utils, 'save');
+    file.add(utils, 'remesh');
+
     let shape = gui.window.addFolder('shape');
-    let control = gui.window.addFolder('control');
-    let simulation = gui.window.addFolder('simulation');
-    let cameraFolder = gui.window.addFolder('camera');
-    information = gui.window.addFolder('information');
-
-    let effectController = function () {this.constraint = 0; this.length = 0;};
-    gui.effect = new effectController();
-
-
-    gui.checkBoxes.inflate = control.add(model, 'inflate').listen();
-    gui.checkBoxes.deflate = control.add(model, 'deflate').listen();
-
-    gui.checkBoxes.simulate = simulation.add(model, 'simulate').listen();
-
+    shape.open();
     gui.checkBoxes.editingMesh = shape.add(viewer, 'editingMesh').listen();
     gui.checkBoxes.addingPolytope = shape.add(viewer, 'addingPolytope').listen();
     gui.checkBoxes.removingPoly = shape.add(viewer, 'removingPoly').listen();
-
-    remesh.add(utils, 'remesh');
     shape.add(utils, 'fixJoints');
     shape.add(utils, 'unfixAll');
-    cameraFolder.add(utils, 'lookAtCenter');
+
+    gui.folders.passive = gui.window.addFolder('type');
+    gui.folders.passive.open();
+    gui.buttons.passive = [];
+    gui.buttons.passive.push(gui.folders.passive.add(utils, "active"));
+    gui.buttons.passive.push(gui.folders.passive.add(utils, "passive"));
+    utils.horizontalize(gui.folders.passive, false);
+
+
+    let effectController = function () {this.constraint = 0; this.length = 0;};
+    gui.effect = new effectController();
+    gui.sliders.length = shape.add( gui.effect, "length", -0.5, 0.0, 0.1).listen();
+    gui.sliders.constraint = shape.add( gui.effect, "constraint",
+        0, Model.defaultContraction, Model.defaultContraction/4).listen();
+
+    gui.folders.channel = gui.window.addFolder('setChannel');
+    gui.folders.channel.open();
+    gui.buttons.channel = [];
+    for (let i=0; i<model.numChannels; i++) {
+        gui.buttons.channel.push(gui.folders.channel.add(utils.chooseChannel, i.toString()));
+    }
+    utils.horizontalize(gui.folders.channel, false);
+
+    gui.folders.inflate = gui.window.addFolder('inflate');
+    gui.folders.inflate.open();
+    gui.checkBoxes.inflateChannel = [];
+    for (let i=0; i<model.numChannels; i++) {
+        gui.checkBoxes.inflateChannel.push(gui.folders.inflate.add(model.inflateChannel, i.toString()).listen());
+    }
+    utils.horizontalize(gui.folders.inflate);
+
+    gui.folders.deflate = gui.window.addFolder('deflate');
+    gui.folders.deflate.open();
+    gui.checkBoxes.deflateChannel = [];
+    for (let i=0; i<model.numChannels; i++) {
+        gui.checkBoxes.deflateChannel.push(gui.folders.deflate.add(model.deflateChannel, i.toString()).listen());
+    }
+    utils.horizontalize(gui.folders.deflate);
+
+    for (let i=0; i<model.numChannels; i++) {
+        gui.checkBoxes.inflateChannel[i].__li.children[0].children[1].children[0].onchange = ()=>{
+            gui.checkBoxes.deflateChannel[i].setValue(false);
+        };
+
+        gui.checkBoxes.deflateChannel[i].__li.children[0].children[1].children[0].onchange = ()=>{
+            gui.checkBoxes.inflateChannel[i].setValue(false);
+        };
+    }
+
+    let simulation = gui.window.addFolder('simulation');
+    simulation.open();
+    gui.checkBoxes.simulate = simulation.add(model, 'simulate').listen();
+
+    let view = gui.window.addFolder('view');
+    view.add(utils, 'lookAtCenter');
+    let showChannel = view.add(viewer, 'showChannel').listen();
+    showChannel.domElement.onchange = () => {
+        viewer.updateMeshes();
+    };
+
+    information = gui.window.addFolder('information');
+    information.open();
     information.add(utils, 'info');
     infoJoints = information.__controllers[0];
     information.add(utils, 'info');
     infoBeams = information.__controllers[1];
 
+    // remesh.open();
 
-    gui.sliders.length = shape.add( gui.effect, "length", -0.2, 0.2, 0.1).listen();
-    gui.sliders.constraint = shape.add( gui.effect, "constraint",
-                                            0, Model.defaultContraction, Model.defaultContraction/4).listen();
 
-    remesh.open();
-    shape.open();
-    control.open();
+
     simulation.open();
-    cameraFolder.open();
+    // cameraFolder.open();
     information.open();
 
     // gui functions =============================================
@@ -249,9 +355,9 @@ function initGUI() {
 
     utils.disable(gui.sliders.constraint);
     utils.disable(gui.sliders.length);
-    utils.disable(gui.checkBoxes.addingPolytope);
-    utils.disable(gui.checkBoxes.removingPoly);
-    gui.checkBoxes.deflate.setValue(true);
+    utils.disable(gui.checkBoxes.addingPolytope, true);
+    utils.disable(gui.checkBoxes.removingPoly, true);
+    // gui.checkBoxes.deflate.setValue(true);
     gui.checkBoxes.simulate.setValue(true);
 
     gui.window.domElement.onmouseover = () => {
@@ -275,17 +381,17 @@ function initGUI() {
     };
 
 
-    gui.checkBoxes.inflate.__checkbox.onclick = gui.checkBoxes.inflate.__li.onclick = () => {
-        if (! model.inflate) {
-            gui.checkBoxes.deflate.setValue(false);
-        }
-    };
-
-    gui.checkBoxes.deflate.__checkbox.onclick = gui.checkBoxes.deflate.__li.onclick = () => {
-        if (! model.deflate) {
-            gui.checkBoxes.inflate.setValue(false);
-        }
-    }
+    // gui.checkBoxes.inflate.__checkbox.onclick = gui.checkBoxes.inflate.__li.onclick = () => {
+    //     if (! model.inflate) {
+    //         gui.checkBoxes.deflate.setValue(false);
+    //     }
+    // };
+    //
+    // gui.checkBoxes.deflate.__checkbox.onclick = gui.checkBoxes.deflate.__li.onclick = () => {
+    //     if (! model.deflate) {
+    //         gui.checkBoxes.inflate.setValue(false);
+    //     }
+    // }
 
 }
 
@@ -337,11 +443,26 @@ function onMouseClick(event) {
     // slider
     if (viewer.idSelected.length === 1 && viewer.typeSelected[0] === 'beam') {
         gui.sliders.constraint.setValue(model.constraints[viewer.idSelected[0]]);
-        gui.sliders.length.setValue(Math.round(model.lm[viewer.idSelected[0]] - Model.defaultMaxLength));
+        gui.sliders.length.setValue(model.lm[viewer.idSelected[0]] - Model.defaultMaxLength);
     }
     if (viewer.typeSelected.includes("beam")) {
-        utils.enable(gui.sliders.constraint);
-        utils.enable(gui.sliders.length);
+        let anyActive = false;
+        let anyPassive = false;
+        for (let i=0; i<viewer.typeSelected.length; i++) {
+            let id = viewer.idSelected[i];
+            if (model.edgeActive[id]) {
+                anyActive = true;
+            }
+            else {
+                anyPassive = true;
+            }
+        }
+        if (!anyPassive) {
+            utils.enable(gui.sliders.constraint);
+        }
+        if (!anyActive) {
+            utils.enable(gui.sliders.length);
+        }
     }
 
     if (viewer.editingMesh && viewer.idSelected.length === 1 && viewer.typeSelected[0] === "face") {
@@ -417,6 +538,6 @@ window.scene = scene;
 window.thre = THREE;
 window.camera = camera;
 window.renderer = renderer;
-window.controls = controls;
+// window.controls = controls;
 window.gui = gui;
 window.utils = utils;

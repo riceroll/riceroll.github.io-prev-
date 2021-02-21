@@ -1,9 +1,4 @@
 import * as thre from '../../node_modules/three/build/three.module.js';
-import {Joint} from './joint.js'
-import {Beam} from './beam.js'
-import {Simulator} from './simulator.js'
-// import {DenseMatrix} from '../../lib/geometry-processing-js/linear-algebra/dense-matrix.js'
-
 
 class Viewer {
     static jointRdius = 0.08;
@@ -15,6 +10,11 @@ class Viewer {
     static faceColor = new thre.Color(1, 1, 1);
     static selectedColor = new thre.Color(0.8, 0.2, 0.2);
     static fixedColor = new thre.Color(0.2, 0.8, 0.8);
+    static passiveColor = new thre.Color(0.7, 0.9, 0.7);
+    static channelColors = [
+        new thre.Color(0.5, 0.5, 0.8),
+        new thre.Color(0.8, 0.8, 0.5)
+    ];
 
     constructor(model) {
         this.model = model;
@@ -27,7 +27,7 @@ class Viewer {
         this.addingPolytope = false;
         this.removingPoly = false;
         this.setGround = false;
-
+        this.showChannel = false;
 
         this.typeSelected = [];
         this.idSelected = [];
@@ -155,6 +155,19 @@ class Viewer {
             let constraint = this.model.constraints[i];
             let color = 1 - constraint;
             beam.material.color.copy(new thre.Color(color, color, color));
+
+
+            if (!this.model.edgeActive[i]) {
+                beam.material.color.copy(Viewer.passiveColor);
+            }
+            else {
+                if (this.showChannel) {
+                    beam.material.color.copy(Viewer.channelColors[this.model.edgeChannel[i]]);
+                }
+                else {
+                    beam.material.color.copy(Viewer.beamColor);
+                }
+            }
         }
 
         // udpate faces
@@ -182,7 +195,7 @@ class Viewer {
         // update fixed color
         for (let i=0; i<this.model.fixedVs.length; i++) {
             let id = this.model.fixedVs[i];
-            this.typeMapToList["joint"].children[id].material.color.copy(Viewer.fixedColor);
+            this.typeMapToList[type].children[id].material.color.copy(Viewer.fixedColor);
         }
 
         // update selection color
@@ -191,6 +204,7 @@ class Viewer {
             let type = this.typeSelected[i];
 
             this.typeMapToList[type].children[id].material.color.copy(Viewer.selectedColor);
+
         }
 
     }
