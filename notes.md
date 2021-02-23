@@ -1,6 +1,6 @@
 0. initialize package.json
 ```
-npm init
+npm reset
 ```
 
 1. Install babel (https://babeljs.io/setup#installation)

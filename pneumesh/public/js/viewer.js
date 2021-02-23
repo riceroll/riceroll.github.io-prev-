@@ -17,6 +17,10 @@ class Viewer {
     ];
 
     constructor(model) {
+        this.reset(model)
+    }
+
+    reset(model) {
         this.model = model;
         this.model.viewer = this;
 
@@ -152,7 +156,7 @@ class Viewer {
             beam.position.copy(center);
 
             // color
-            let constraint = this.model.constraints[i];
+            let constraint = this.model.maxContraction[i];
             let color = 1 - constraint;
             beam.material.color.copy(new thre.Color(color, color, color));
 

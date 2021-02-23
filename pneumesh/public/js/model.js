@@ -1,25 +1,36 @@
 import * as thre from '../../node_modules/three/build/three.module.js';
 
 class Model {
-    static k = 80;
-    static h = 0.1;
+    static k = 200;
+    static h = 0.04;
     static dampingRatio = 0.6;
-    static defaultContraction = 0.35;
+    static maxMaxContraction = 0.35;
+    static contractionPercentRate = 0.0004 / Model.h;  // contraction percentage change ratio, per time step
     static gravityFactor = 9.8 * 0.1;
     static gravity = 1;
     static defaultMinLength = 1.2;
-    static defaultMaxLength = Model.defaultMinLength / (1 - Model.defaultContraction);
+    static defaultMaxLength = Model.defaultMinLength / (1 - Model.maxMaxContraction);
     static frictionFactor = 0.8;
 
     constructor() {
-        this.mesh = new thre.Object3D();
         this.viewer = null;
 
+        this.reset();
+
+        this.setMesh();
+        this.init();
+    }
+
+    reset() {
         this.v = [];  // vertex positions: nV x 3
-        this.v0 = [];
         this.e = [];  // edge positions: nE x 2
-        this.lm = []; // maximum length
-        this.constraints = [];  // percentage of constraints: nE
+        this.faces = [];
+        this.polytopes = [];    // indices of faces
+
+
+        this.v0 = [];
+        this.lMax = []; // maximum length
+        this.maxContraction = [];  // percentage of maxMaxContraction: nE
         this.l = [];    // current length of beams: nE
         this.vel = [];  // vertex velocities: nV x 3
         this.f = [];  // vertex forces: nV x 3
@@ -27,22 +38,17 @@ class Model {
         this.edgeChannel = [];  // id of beam edgeChannel: nE
         this.edgeActive = [];  // if beam is active: nE
 
-        this.faces = [];
-        this.polytopes = [];
-
-        this.simulate = false;
-        this.inflate = false;
-        this.deflate = false;
+        this.simulate = true;
+        this.gravity = true;
 
         this.numChannels = 2;
 
-        this.inflateChannel = new Array(this.numChannels).fill(false);
-        this.deflateChannel = new Array(this.numChannels).fill(true);
+        if (!this.inflateChannel) {
+            this.inflateChannel = new Array(this.numChannels).fill(false);
+            this.deflateChannel = new Array(this.numChannels).fill(true);
+            this.contractionPercent = new Array(this.numChannels).fill(1);  // contraction percentage of each channel, 0-1
+        }
 
-        this.inflates = [];
-        this.deflates = [];
-
-        this.init();
     }
 
     setMesh(v, e, f, p){
@@ -79,12 +85,10 @@ class Model {
     }
 
 
-
     init() {
-        this.setMesh();
 
         // rescale
-        let currentLm = this.v[0].distanceTo(this.v[1]) / (1 - Model.defaultContraction);
+        let currentLm = this.v[0].distanceTo(this.v[1]) / (1 - Model.maxMaxContraction);
         for (let i=0; i<this.v.length; i++) {
             this.v[i].divideScalar(currentLm);
             this.v[i].multiplyScalar(Model.defaultMaxLength);
@@ -124,12 +128,12 @@ class Model {
         }
 
         if (updateAll) {
-            this.lm = Array.from(this.l);
+            this.lMax = Array.from(this.l);
             for (let i=0; i<this.e.length; i++) {
-                this.lm[i] /= 1 - Model.defaultContraction;
+                this.lMax[i] /= 1 - Model.maxMaxContraction;
             }
 
-            this.constraints = new Array(this.e.length).fill(0);
+            this.maxContraction = new Array(this.e.length).fill(Model.maxMaxContraction);
             this.edgeChannel = new Array(this.e.length).fill(0);
             this.edgeActive = new Array(this.e.length).fill(true);
         }
@@ -139,22 +143,44 @@ class Model {
     update() {
         this.updateL();
 
+        // global parameters
+        // update contraction percentage
+        for (let i=0; i<this.numChannels; i++) {
+            if (this.inflateChannel[i]) {
+                this.contractionPercent[i] -= Model.contractionPercentRate;
+                if (this.contractionPercent[i] < 0) {
+                    this.contractionPercent[i] = 0;
+                }
+            }
+            else {
+                this.contractionPercent[i] += Model.contractionPercentRate;
+                if (this.contractionPercent[i] > 1) {
+                    this.contractionPercent[i] = 1;
+                }
+            }
+        }
+
+        // initialize forces
         this.f = [];
         for (let i=0; i<this.v.length; i++) {
             this.f.push(new thre.Vector3());
         }
 
-        // length constraint
+        // length maxContraction
         for (let i=0; i<this.e.length; i++) {
             let e = this.e[i];
             let v0 = this.v[e[0]];
             let v1 = this.v[e[1]];
 
             let vec = v1.clone().sub(v0); // from 0 to 1
-            let l0 = this.lm[i];
 
-            if (this.edgeActive[i] && this.deflateChannel[this.edgeChannel[i]]) {
-                l0 = l0 * (1 - (Model.defaultContraction - this.constraints[i]));
+
+            let l0 = this.lMax[i];
+            if (this.edgeActive[i]) {
+                let iChannel = this.edgeChannel[i];
+                let lMax = l0;
+                let lMin = lMax * (1 - this.maxContraction[i]);
+                l0 = lMax - this.contractionPercent[iChannel] * (lMax - lMin);
             }
 
 
@@ -166,7 +192,9 @@ class Model {
 
         // gravity
         for (let i=0; i<this.v.length; i++) {
-            this.f[i].add(new thre.Vector3(0, 0, -Model.gravityFactor * Model.gravity));
+            if (this.gravity) {
+                this.f[i].add(new thre.Vector3(0, 0, -Model.gravityFactor * Model.gravity));
+            }
         }
 
         // friction

@@ -155,7 +155,7 @@ let utils = {
             }
         }
         utils.enable(gui.sliders.length);
-        utils.disable(gui.sliders.constraint);
+        utils.disable(gui.sliders.maxContraction);
 
     },
 
@@ -165,7 +165,7 @@ let utils = {
                 model.edgeActive[viewer.idSelected[i]] = true;
             }
         }
-        utils.enable(gui.sliders.constraint);
+        utils.enable(gui.sliders.maxContraction);
         utils.disable(gui.sliders.length);
     },
 
@@ -203,15 +203,36 @@ let utils = {
 
     load: ()=>{
         document.getElementById("inputFile").click();
-        let numFiles = document.getElementById("inputFile").files.length;
-        if (numFiles === 1) {
+
+        document.getElementById("inputFile").onchange = ()=>{
+
+            let numFiles = document.getElementById("inputFile").files.length;
+
             let reader = new FileReader();
-            reader.onload = (e) => {
-                inputFileString = e.target.result;
+            reader.onload = (event) => {
+                console.log('haha');
+                inputFileString = event.target.result;
                 window.inputFileString = inputFileString;
+                let data = JSON.parse(inputFileString);
+                let v = [];
+                let e = Array.from(data.e);
+                let f = Array.from(data.f);
+                let p = Array.from(data.p);
+                for (let i=0; i<data.v.length; i++) {
+                    v.push(new thre.Vector3(data.v[i][0], data.v[i][1], data.v[i][2]));
+                }
+                model.reset();
+                model.setMesh(v, e, f, p);
+                model.init();
+                scene.children.splice(4, 1);
+                viewer.reset(model);
+                scene.add(viewer.mesh);
+
             };
             reader.readAsText(document.getElementById("inputFile").files[0]);
-        }
+        };
+
+
     },
 
     save: ()=>{
@@ -270,11 +291,11 @@ function initGUI() {
     utils.horizontalize(gui.folders.passive, false);
 
 
-    let effectController = function () {this.constraint = 0; this.length = 0;};
+    let effectController = function () {this.maxContraction = Model.maxMaxContraction; this.length = 0;};
     gui.effect = new effectController();
     gui.sliders.length = shape.add( gui.effect, "length", -0.5, 0.0, 0.1).listen();
-    gui.sliders.constraint = shape.add( gui.effect, "constraint",
-        0, Model.defaultContraction, Model.defaultContraction/4).listen();
+    gui.sliders.maxContraction = shape.add( gui.effect, "maxContraction",
+        0, Model.maxMaxContraction, Model.maxMaxContraction/4).listen();
 
     gui.folders.channel = gui.window.addFolder('setChannel');
     gui.folders.channel.open();
@@ -312,6 +333,7 @@ function initGUI() {
 
     let simulation = gui.window.addFolder('simulation');
     simulation.open();
+    gui.checkBoxes.gravity = simulation.add(model, 'gravity').listen();
     gui.checkBoxes.simulate = simulation.add(model, 'simulate').listen();
 
     let view = gui.window.addFolder('view');
@@ -337,23 +359,25 @@ function initGUI() {
     information.open();
 
     // gui functions =============================================
-    // constraints
-    gui.sliders.constraint.onChange(function(value) {
-        for (let i=0; i<viewer.idSelected.length; i++) {
-            if (viewer.typeSelected[i] === 'beam') {
-                model.constraints[viewer.idSelected[i]] = value;
+    // maxContraction
+    gui.sliders.maxContraction.__li.onclick =
+        () => {
+            for (let i=0; i<viewer.idSelected.length; i++) {
+                if (viewer.typeSelected[i] === 'beam') {
+                    model.maxContraction[viewer.idSelected[i]] = gui.sliders.maxContraction.getValue();
+                }
             }
-        }
-    });
-    gui.sliders.length.onChange(function(value) {
-        for (let i=0; i<viewer.idSelected.length; i++) {
-            if (viewer.typeSelected[i] === 'beam') {
-                model.lm[viewer.idSelected[i]] = Model.defaultMaxLength + value;
+    };
+    gui.sliders.length.__li.onclick =
+        () => {
+            for (let i=0; i<viewer.idSelected.length; i++) {
+                if (viewer.typeSelected[i] === 'beam') {
+                    model.lMax[viewer.idSelected[i]] = Model.defaultMaxLength + gui.sliders.length.getValue();
+                }
             }
-        }
-    });
+    };
 
-    utils.disable(gui.sliders.constraint);
+    utils.disable(gui.sliders.maxContraction);
     utils.disable(gui.sliders.length);
     utils.disable(gui.checkBoxes.addingPolytope, true);
     utils.disable(gui.checkBoxes.removingPoly, true);
@@ -427,24 +451,28 @@ function onMouseClick(event) {
         viewer.idSelected = [];
     }
 
-    utils.disable(gui.sliders.constraint);
+    utils.disable(gui.sliders.maxContraction);
     utils.disable(gui.sliders.length);
     let obj = objectCasted();
     if (!obj) return 0;
 
     let selected = false;    // selection already selected
     for (let i=0; i<viewer.idSelected.length; i++) {
-        if (viewer.idSelected[i] === obj.userData.id && viewer.typeSelected[i] === obj.userData.type) selected = false;
+        if (viewer.idSelected[i] === obj.userData.id && viewer.typeSelected[i] === obj.userData.type)
+            selected = false;
     }
 
     viewer.idSelected.push(obj.userData.id);
     viewer.typeSelected.push(obj.userData.type);
 
-    // slider
+
+    //slider
     if (viewer.idSelected.length === 1 && viewer.typeSelected[0] === 'beam') {
-        gui.sliders.constraint.setValue(model.constraints[viewer.idSelected[0]]);
-        gui.sliders.length.setValue(model.lm[viewer.idSelected[0]] - Model.defaultMaxLength);
+        gui.sliders.maxContraction.setValue(model.maxContraction[viewer.idSelected[0]]);
+        gui.sliders.length.setValue(model.lMax[viewer.idSelected[0]] - Model.defaultMaxLength);
     }
+
+
     if (viewer.typeSelected.includes("beam")) {
         let anyActive = false;
         let anyPassive = false;
@@ -458,7 +486,7 @@ function onMouseClick(event) {
             }
         }
         if (!anyPassive) {
-            utils.enable(gui.sliders.constraint);
+            utils.enable(gui.sliders.maxContraction);
         }
         if (!anyActive) {
             utils.enable(gui.sliders.length);

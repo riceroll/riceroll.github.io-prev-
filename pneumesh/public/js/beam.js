@@ -15,7 +15,7 @@ class Beam {
     this.connectJoint(joint1);
     this.hovered = false;
     this.selected = false;
-    this.constraint = 0;
+    this.maxContraction = 0;
     this.length0 = null;
 
     Beam.beams.push(this);
@@ -52,7 +52,7 @@ class Beam {
   }
 
   actuatorColor() {
-    return( new THREE.Color(1, 1, 1).copy(Beam.color).multiplyScalar( (1 - Math.sqrt(this.constraint * 0.6) ) ));
+    return( new THREE.Color(1, 1, 1).copy(Beam.color).multiplyScalar( (1 - Math.sqrt(this.maxContraction * 0.6) ) ));
   }
 
   center() {
