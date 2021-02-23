@@ -199,7 +199,7 @@ class Viewer {
         // update fixed color
         for (let i=0; i<this.model.fixedVs.length; i++) {
             let id = this.model.fixedVs[i];
-            this.typeMapToList[type].children[id].material.color.copy(Viewer.fixedColor);
+            this.typeMapToList["joint"].children[id].material.color.copy(Viewer.fixedColor);
         }
 
         // update selection color
