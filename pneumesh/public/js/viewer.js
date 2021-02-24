@@ -9,6 +9,7 @@ class Viewer {
     static beamColor = new thre.Color(1, 1, 1);
     static faceColor = new thre.Color(1, 1, 1);
     static selectedColor = new thre.Color(0.8, 0.2, 0.2);
+    static HoveredColor = new thre.Color(1.0, 0.8, 0.8);
     static fixedColor = new thre.Color(0.2, 0.8, 0.8);
     static passiveColor = new thre.Color(0.7, 0.9, 0.7);
     static channelColors = [
@@ -35,6 +36,9 @@ class Viewer {
 
         this.typeSelected = [];
         this.idSelected = [];
+
+        this.typeHovered = null;
+        this.idHovered = null;
 
         this.createAll();
         this.updateMeshes();
@@ -202,14 +206,22 @@ class Viewer {
             this.typeMapToList["joint"].children[id].material.color.copy(Viewer.fixedColor);
         }
 
+        // update hovered color
+        if (this.idHovered !== null) {
+            let id = this.idHovered;
+            let type = this.typeHovered;
+
+            this.typeMapToList[type].children[id].material.color.copy(Viewer.HoveredColor);
+        }
+
         // update selection color
         for (let i=0; i<this.idSelected.length; i++) {
             let id = this.idSelected[i];
             let type = this.typeSelected[i];
 
             this.typeMapToList[type].children[id].material.color.copy(Viewer.selectedColor);
-
         }
+
 
     }
 

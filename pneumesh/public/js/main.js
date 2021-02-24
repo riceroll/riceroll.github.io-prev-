@@ -15,6 +15,9 @@ let information;
 let infoJoints, infoBeams;
 let inputFileString;
 
+let lastX = 0;
+let lastY = 0;
+
 let gridHelper;
 let ground;
 
@@ -295,9 +298,10 @@ function initGUI() {
     gui.window = new GUI();
 
     let file = gui.window.addFolder('file');
+    file.open();
     file.add(utils, 'load');
     file.add(utils, 'save');
-    file.add(utils, 'remesh');
+    // file.add(utils, 'remesh');
 
     let shape = gui.window.addFolder('shape');
     shape.open();
@@ -362,6 +366,7 @@ function initGUI() {
     gui.checkBoxes.simulate = simulation.add(model, 'simulate').listen();
 
     let view = gui.window.addFolder('view');
+    view.open();
     view.add(utils, 'lookAtCenter');
     let showChannel = view.add(viewer, 'showChannel').listen();
     showChannel.domElement.onchange = () => {
@@ -369,14 +374,12 @@ function initGUI() {
     };
 
     information = gui.window.addFolder('information');
-    information.open();
+    // information.open();
     information.add(utils, 'info');
     infoJoints = information.__controllers[0];
     information.add(utils, 'info');
     infoBeams = information.__controllers[1];
 
-    simulation.open();
-    information.open();
 
     // gui functions =============================================
     // maxContraction
@@ -470,24 +473,31 @@ function onMouseClick(event) {
         return 0;
     }
 
-    if (!viewer.pressingMeta) {
-        viewer.typeSelected = [];
-        viewer.idSelected = [];
-    }
-
     utils.disable(gui.sliders.maxContraction);
     utils.disable(gui.sliders.length);
     let obj = objectCasted();
     if (!obj) return 0;
 
-    let selected = false;    // selection already selected
+    // deselect with meta pressed
+    let existed = false;
+    let iExisted = -1;
     for (let i=0; i<viewer.idSelected.length; i++) {
-        if (viewer.idSelected[i] === obj.userData.id && viewer.typeSelected[i] === obj.userData.type)
-            selected = false;
+        if (viewer.idSelected[i] === obj.userData.id && viewer.typeSelected[i] === obj.userData.type) {
+            existed = true;
+            iExisted = i;
+        }
     }
 
-    viewer.idSelected.push(obj.userData.id);
-    viewer.typeSelected.push(obj.userData.type);
+    if (existed) {
+        if (viewer.pressingMeta) {
+            viewer.idSelected.splice(iExisted, 1);
+            viewer.typeSelected.splice(iExisted, 1);
+        }
+    }
+    else {
+        viewer.idSelected.push(obj.userData.id);
+        viewer.typeSelected.push(obj.userData.type);
+    }
 
 
     //slider
@@ -532,6 +542,30 @@ function onMouseClick(event) {
         viewer.createAll();
 
     }
+
+
+}
+
+function onMouseDown(event) {
+    mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
+    mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+    lastX = mouse.x;
+    lastY = mouse.y;
+}
+
+function onMouseUp(event) {
+    mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
+    mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+
+    let obj = objectCasted();
+
+    if (Math.abs(mouse.x - lastX + mouse.y - lastY) < 0.02) {
+        if (!obj) {
+            viewer.typeSelected = [];
+            viewer.idSelected = [];
+        }
+    }
+
 }
 
 
@@ -540,6 +574,17 @@ function onMouseMove( event ) {
     mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
 
     let obj = objectCasted();
+
+    if (obj) {
+        viewer.idHovered = obj.userData.id;
+        viewer.typeHovered = obj.userData.type;
+    }
+    else {
+        viewer.idHovered = null;
+        viewer.typeHovered = null;
+    }
+
+
 
 }
 
@@ -579,7 +624,9 @@ animate();
 
 window.addEventListener( 'resize', onWindowResize, false );
 window.addEventListener( 'mousedown', onMouseClick, false );
+window.addEventListener( 'mouseup', onMouseUp, false );
 window.addEventListener( 'mousemove', onMouseMove, false );
+window.addEventListener( 'mousedown', onMouseDown, false );
 window.addEventListener( 'keydown', onKeyDown, false );
 window.addEventListener( 'keyup', onKeyUp, false );
 
