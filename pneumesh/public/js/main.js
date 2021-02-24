@@ -42,7 +42,7 @@ function initScene() {
     document.body.appendChild( renderer.domElement );
 
     scene = new THREE.Scene();
-    scene.background = new THREE.Color( 0.8, 0.8, 0.8 );
+    scene.background = new THREE.Color( 0.9, 0.9, 0.9 );
 
     camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 0.1, 1000 );
     camera.position.set(0, -20, 1 );
@@ -90,7 +90,7 @@ let utils = {
     updateGUI: ()=>{
         if (viewer.editingMesh) {
             utils.enable(gui.checkBoxes.addingPolytope);
-            utils.enable(gui.checkBoxes.removingPoly);
+            utils.enable(gui.checkBoxes.removingPolytope);
             Model.gravity = 0;
             ground.visible = false;
             gridHelper.visible = false;
@@ -99,7 +99,7 @@ let utils = {
         }
         else {
             utils.disable(gui.checkBoxes.addingPolytope, true);
-            utils.disable(gui.checkBoxes.removingPoly, true);
+            utils.disable(gui.checkBoxes.removingPolytope, true);
             Model.gravity = 1;
             ground.visible = true;
             gridHelper.visible = true;
@@ -198,22 +198,26 @@ let utils = {
     },
 
     remesh: ()=>{
+        alert('server is not turned on.');
 
     },
 
     load: ()=>{
+        let input = document.createElement('input');
+        document.body.appendChild(input);
+        input.type = 'file';
+        input.id = 'inputFile';
+        input.style = 'display:none';
+
         document.getElementById("inputFile").click();
-
         document.getElementById("inputFile").onchange = ()=>{
-
-            let numFiles = document.getElementById("inputFile").files.length;
 
             let reader = new FileReader();
             reader.onload = (event) => {
-                console.log('haha');
                 inputFileString = event.target.result;
                 window.inputFileString = inputFileString;
                 let data = JSON.parse(inputFileString);
+                console.log(data);
                 let v = [];
                 let e = Array.from(data.e);
                 let f = Array.from(data.f);
@@ -222,20 +226,40 @@ let utils = {
                     v.push(new thre.Vector3(data.v[i][0], data.v[i][1], data.v[i][2]));
                 }
                 model.reset();
-                model.setMesh(v, e, f, p);
-                model.init();
+                if (model.lMax) {
+                    let lMax = data.lMax;
+                    let maxContraction = data.maxContraction;
+                    let fixedVs = data.fixedVs;
+                    let edgeChannel = data.edgeChannel;
+                    let edgeActive = data.edgeActive;
+                    model.loadData(v, e, f, p, lMax, maxContraction, fixedVs, edgeChannel, edgeActive);
+                }
+                else {
+                    model.loadData(v, e, f, p);
+                }
+                model.init(false);
                 scene.children.splice(4, 1);
                 viewer.reset(model);
                 scene.add(viewer.mesh);
 
             };
             reader.readAsText(document.getElementById("inputFile").files[0]);
+            document.body.removeChild(input);
         };
-
 
     },
 
     save: ()=>{
+        let data = model.saveData();
+        let json = JSON.stringify(data);
+
+        let download = document.createElement('a');
+        document.body.appendChild(download);
+        download.download = 'download.json';
+        download.style.display = 'none';
+        console.log(json);
+        download.href = 'data:text/plain;charset=utf-8,' + encodeURIComponent(json);
+        download.click();
 
     },
 
@@ -279,7 +303,7 @@ function initGUI() {
     shape.open();
     gui.checkBoxes.editingMesh = shape.add(viewer, 'editingMesh').listen();
     gui.checkBoxes.addingPolytope = shape.add(viewer, 'addingPolytope').listen();
-    gui.checkBoxes.removingPoly = shape.add(viewer, 'removingPoly').listen();
+    gui.checkBoxes.removingPolytope = shape.add(viewer, 'removingPolytope').listen();
     shape.add(utils, 'fixJoints');
     shape.add(utils, 'unfixAll');
 
@@ -291,7 +315,7 @@ function initGUI() {
     utils.horizontalize(gui.folders.passive, false);
 
 
-    let effectController = function () {this.maxContraction = Model.maxMaxContraction; this.length = 0;};
+    let effectController = function () {this.maxContraction = Model.maxMaxContraction; this.length = 0; this.friction = Model.frictionFactor;};
     gui.effect = new effectController();
     gui.sliders.length = shape.add( gui.effect, "length", -0.5, 0.0, 0.1).listen();
     gui.sliders.maxContraction = shape.add( gui.effect, "maxContraction",
@@ -334,6 +358,7 @@ function initGUI() {
     let simulation = gui.window.addFolder('simulation');
     simulation.open();
     gui.checkBoxes.gravity = simulation.add(model, 'gravity').listen();
+    gui.sliders.friction = simulation.add( gui.effect, "friction", 0.0, 0.9, 0.1).listen();
     gui.checkBoxes.simulate = simulation.add(model, 'simulate').listen();
 
     let view = gui.window.addFolder('view');
@@ -350,12 +375,7 @@ function initGUI() {
     information.add(utils, 'info');
     infoBeams = information.__controllers[1];
 
-    // remesh.open();
-
-
-
     simulation.open();
-    // cameraFolder.open();
     information.open();
 
     // gui functions =============================================
@@ -376,11 +396,15 @@ function initGUI() {
                 }
             }
     };
+    gui.sliders.friction.__li.onclick =
+        () => {
+            Model.frictionFactor = gui.sliders.friction.getValue()
+        };
 
     utils.disable(gui.sliders.maxContraction);
     utils.disable(gui.sliders.length);
     utils.disable(gui.checkBoxes.addingPolytope, true);
-    utils.disable(gui.checkBoxes.removingPoly, true);
+    utils.disable(gui.checkBoxes.removingPolytope, true);
     // gui.checkBoxes.deflate.setValue(true);
     gui.checkBoxes.simulate.setValue(true);
 
@@ -397,10 +421,10 @@ function initGUI() {
     };
 
     gui.checkBoxes.addingPolytope.__checkbox.onclick = gui.checkBoxes.addingPolytope.__li.onclick = () => {
-        gui.checkBoxes.removingPoly.setValue(false);
+        gui.checkBoxes.removingPolytope.setValue(false);
     };
 
-    gui.checkBoxes.removingPoly.__checkbox.onclick = gui.checkBoxes.removingPoly.__li.onclick = () => {
+    gui.checkBoxes.removingPolytope.__checkbox.onclick = gui.checkBoxes.removingPolytope.__li.onclick = () => {
         gui.checkBoxes.addingPolytope.setValue(false);
     };
 
@@ -497,7 +521,7 @@ function onMouseClick(event) {
         if (viewer.addingPolytope) {
             model.addPolytope(viewer.idSelected[0]);
         }
-        else if (viewer.removingPoly) {
+        else if (viewer.removingPolytope) {
             model.removePolytope(viewer.idSelected[0]);
         }
 

@@ -29,7 +29,7 @@ class Viewer {
         this.pressingMeta = false;
         this.editingMesh = false;
         this.addingPolytope = false;
-        this.removingPoly = false;
+        this.removingPolytope = false;
         this.setGround = false;
         this.showChannel = false;
 

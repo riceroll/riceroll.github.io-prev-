@@ -17,7 +17,7 @@ class Model {
 
         this.reset();
 
-        this.setMesh();
+        this.loadData();
         this.init();
     }
 
@@ -28,15 +28,16 @@ class Model {
         this.polytopes = [];    // indices of faces
 
 
-        this.v0 = [];
         this.lMax = []; // maximum length
         this.maxContraction = [];  // percentage of maxMaxContraction: nE
-        this.l = [];    // current length of beams: nE
-        this.vel = [];  // vertex velocities: nV x 3
-        this.f = [];  // vertex forces: nV x 3
         this.fixedVs = [];  // id of vertices that are fixed
         this.edgeChannel = [];  // id of beam edgeChannel: nE
         this.edgeActive = [];  // if beam is active: nE
+
+        this.v0 = [];
+        this.l = [];    // current length of beams: nE
+        this.vel = [];  // vertex velocities: nV x 3
+        this.f = [];  // vertex forces: nV x 3
 
         this.simulate = true;
         this.gravity = true;
@@ -51,7 +52,7 @@ class Model {
 
     }
 
-    setMesh(v, e, f, p){
+    loadData(v, e, f, p, lMax, maxContraction, fixedVs, edgeChannel, edgeActive){
         if (v) {
             this.v = v;
             this.e = e;
@@ -82,10 +83,34 @@ class Model {
                 [0, 1, 2, 3]
             ];
         }
+
+        if (lMax) {
+            this.lMax = lMax;
+            this.maxContraction = maxContraction;
+            this.fixedVs = fixedVs;
+            this.edgeChannel = edgeChannel;
+            this.edgeActive = edgeActive;
+        }
     }
 
+    saveData() {
+        let data = {};
+        data.v = [];
+        for (let v of this.v) {
+            data.v.push([v.x, v.y, v.z]);
+        }
+        data.e = this.e;
+        data.f = this.faces;
+        data.p = this.polytopes;
+        data.lMax = this.lMax;
+        data.maxContraction = this.maxContraction;
+        data.fixedVs =this.fixedVs;
+        data.edgeChannel = this.edgeChannel;
+        data.edgeActive = this.edgeActive;
+        return data;
+    }
 
-    init() {
+    init(updateAll=true) {
 
         // rescale
         let currentLm = this.v[0].distanceTo(this.v[1]) / (1 - Model.maxMaxContraction);
@@ -95,7 +120,7 @@ class Model {
         }
 
         // update other values
-        this.updateL(true);
+        this.updateL(updateAll);
 
         this.vel = [];
         this.f = [];
