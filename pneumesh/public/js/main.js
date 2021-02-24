@@ -557,6 +557,10 @@ function onMouseUp(event) {
     mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
     mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
 
+    if (utils.mouseOverGUI) {
+        return 0;
+    }
+
     let obj = objectCasted();
 
     if (Math.abs(mouse.x - lastX + mouse.y - lastY) < 0.02) {
