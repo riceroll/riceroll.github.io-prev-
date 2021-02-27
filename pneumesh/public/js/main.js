@@ -220,7 +220,6 @@ let utils = {
                 inputFileString = event.target.result;
                 window.inputFileString = inputFileString;
                 let data = JSON.parse(inputFileString);
-                console.log(data);
                 let v = [];
                 let e = Array.from(data.e);
                 let f = Array.from(data.f);
@@ -229,22 +228,23 @@ let utils = {
                     v.push(new thre.Vector3(data.v[i][0], data.v[i][1], data.v[i][2]));
                 }
                 model.reset();
-                if (model.lMax) {
+                if (data.lMax) {
                     let lMax = data.lMax;
                     let maxContraction = data.maxContraction;
                     let fixedVs = data.fixedVs;
                     let edgeChannel = data.edgeChannel;
                     let edgeActive = data.edgeActive;
                     model.loadData(v, e, f, p, lMax, maxContraction, fixedVs, edgeChannel, edgeActive);
+                    console.log('hehe');
+                    model.init(false);
                 }
                 else {
                     model.loadData(v, e, f, p);
+                    model.init(true);
                 }
-                model.init(false);
                 scene.children.splice(4, 1);
                 viewer.reset(model);
                 scene.add(viewer.mesh);
-
             };
             reader.readAsText(document.getElementById("inputFile").files[0]);
             document.body.removeChild(input);
