@@ -127,7 +127,7 @@ class Polytope {
 
 class Model {
     static k = 600;
-    static h = 0.04;
+    static h = 0.03;
     static dampingRatio = 0.6;
     static maxMaxContraction = 0.35;
     static contractionPercentRate = 0.0004 / Model.h;  // contraction percentage change ratio, per time step
