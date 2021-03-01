@@ -202,8 +202,9 @@ class Viewer {
 
         // update fixed color
         for (let i=0; i<this.model.fixedVs.length; i++) {
-            let id = this.model.fixedVs[i];
-            this.typeMapToList["joint"].children[id].material.color.copy(Viewer.fixedColor);
+            if (this.model.fixedVs[i]) {
+                this.typeMapToList["joint"].children[i].material.color.copy(Viewer.fixedColor);
+            }
         }
 
         // update hovered color

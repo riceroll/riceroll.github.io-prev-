@@ -1,5 +1,132 @@
 import * as thre from '../../node_modules/three/build/three.module.js';
 
+class Vertex {
+    static all = [];
+
+    constructor(pos, fixed, pos0, vel, force) {
+        this.pos = pos;     // thre.Vector3
+        this.fixed = fixed;
+        this.pos0 = pos0;
+        this.vel = vel;
+        this.force =force;
+
+        this.id = Vertex.all.length;
+        Vertex.all.push(this);
+    }
+
+    // add vertices cited by faces
+    static updateCitedVertices() {
+        let vs = [];
+        for (let f of Face.all) {
+            vs = vs.concat(f.vs);
+        }
+        let vsSet = new Set();
+        vs.forEach(v => vsSet.add(v));
+        Vertex.all = Array.from(vsSet);
+    }
+
+}
+
+class Edge {
+    static all = [];
+
+    constructor(vs, lMax, maxContraction, edgeChannel, edgeActive, l) {
+        this.vs = [];
+        this.lMax = lMax;
+        this.maxContraction = maxContraction;
+        this.edgeChannel = edgeChannel;
+        this.edgeActive = edgeActive;
+        this.l = l;
+
+        for (let iv of vs) {
+            this.vs.push(Vertex.all[iv]);
+        }
+
+        this.id = Edge.all.length;
+        Edge.all.push(this);
+    }
+
+    // keep edges with face citing them
+    static updateCitedEdges() {
+        let edges = Face.citedEdges();
+
+        let es = [];
+        for (let e of Edge.all) {
+            let v0 = e.vs[0];
+            let v1 = e.vs[1];
+            for (let edge of edges) {
+                if ((edge[0] === v0 && edge[1] === v1) || (edge[1] === v0 && edge[0] === v1)) {
+                    es.push(e);
+                    break;
+                }
+            }
+        }
+        Edge.all = es;
+    }
+
+}
+
+class Face {
+    static all = [];
+
+    constructor(vs) {
+        this.vs = [];
+        for (let iv of vs) {
+            this.vs.push(Vertex.all[iv]);
+        }
+
+        this.id = Face.all.length;
+        Face.all.push(this);
+    }
+
+    // add faces cited by polytopes
+    static updateCitedFaces() {
+        let faces = [];
+        for (let p of Polytope.all) {
+            faces = faces.concat(p.fs);
+        }
+        let facesSet = new Set();
+        faces.forEach(f => facesSet.add(f));
+        Face.all = Array.from(faces);
+    }
+
+    static citedEdges() {
+        let edges = [];
+        for (let f of Face.all) {
+            edges.push([f.vs[0], f.vs[1]]);
+            edges.push([f.vs[1], f.vs[2]]);
+            edges.push([f.vs[2], f.vs[3]]);
+        }
+        return edges;
+    }
+}
+
+class Polytope {
+    static all = [];
+
+    constructor(fs) {
+        this.fs = [];
+        for (let iFace of fs) {
+            this.fs.push(Face.all[iFace]);
+        }
+
+        this.id = Polytope.all.length;
+        Polytope.all.push(this);
+    }
+
+    static getPolyFromIFace(iFace) {
+        for (let poly of Polytope.all) {
+            if (poly.fs.includes(Face.all[iFace])) {
+                return poly;
+            }
+        }
+        return false;
+    }
+}
+
+
+
+
 class Model {
     static k = 200;
     static h = 0.04;
@@ -15,6 +142,12 @@ class Model {
     constructor() {
         this.viewer = null;
 
+        this.Vertex = Vertex;
+        this.Edge = Edge;
+        this.Face = Face;
+        this.Polytope = Polytope;
+        this.Model = Model;
+
         this.reset();
 
         this.loadData();
@@ -28,16 +161,16 @@ class Model {
         this.polytopes = [];    // indices of faces
 
 
+        this.fixedVs = [];  // id of vertices that are fixed
         this.lMax = []; // maximum length
         this.maxContraction = [];  // percentage of maxMaxContraction: nE
-        this.fixedVs = [];  // id of vertices that are fixed
         this.edgeChannel = [];  // id of beam edgeChannel: nE
         this.edgeActive = [];  // if beam is active: nE
 
         this.v0 = [];
-        this.l = [];    // current length of beams: nE
         this.vel = [];  // vertex velocities: nV x 3
         this.f = [];  // vertex forces: nV x 3
+        this.l = [];    // current length of beams: nE
 
         this.simulate = true;
         this.gravity = true;
@@ -120,7 +253,7 @@ class Model {
         }
 
         // update other values
-        this.updateL(updateAll);
+        this.updateData(updateAll);
 
         this.vel = [];
         this.f = [];
@@ -145,7 +278,7 @@ class Model {
         }
     }
 
-    updateL(updateAll = false) {
+    updateData(updateAll = false) {
         this.l = [];
         for (let i=0; i<this.e.length; i++) {
             let e = this.e[i];
@@ -161,12 +294,14 @@ class Model {
             this.maxContraction = new Array(this.e.length).fill(Model.maxMaxContraction);
             this.edgeChannel = new Array(this.e.length).fill(0);
             this.edgeActive = new Array(this.e.length).fill(true);
+            this.fixedVs = new Array(this.v.length).fill(false);
+            this.recordV();
         }
 
     }
 
     update() {
-        this.updateL();
+        this.updateData();
 
         // global parameters
         // update contraction percentage
@@ -368,105 +503,108 @@ class Model {
             this.polytopes.push([if0, if1, if2, if3]);
         }
 
-        this.updateL(true);
+        this.updateData(true);
+
+        this.updateDataStructure();
     }
 
+    // update the model variables to data structures
+    updateDataStructure() {
+        Vertex.all = [];
+        for (let i = 0; i < this.v.length; i++) {
+            new Vertex(this.v[i], this.fixedVs[i], this.v0[i], this.vel[i], this.f[i]);
+        }
+        Edge.all = [];
+        for (let i = 0; i < this.e.length; i++) {
+            new Edge(this.e[i], this.lMax[i], this.maxContraction[i], this.edgeChannel[i], this.edgeActive[i], this.l[i]);
+        }
+
+        Face.all = [];
+        this.faces.forEach(f => new Face(f));
+        Polytope.all = [];
+        this.polytopes.forEach(p => new Polytope(p));
+    }
+
+    // convert data structures to model variables
+    updateFromDataStructure() {
+        this.v = [];
+        this.fixedVs = [];
+        this.v0 = [];
+        this.vel = [];
+        this.f = [];
+        for (let v of Vertex.all) {
+            this.v.push(v.pos);
+            this.fixedVs.push(v.fixed);
+            this.v0.push(v.pos0);
+            this.vel.push(v.vel);
+            this.f.push(v.f);
+        }
+
+        this.e = [];
+        this.lMax = [];
+        this.maxContraction = [];
+        this.edgeChannel = [];
+        this.edgeActive = [];
+        this.l = [];
+        for (let e of Edge.all) {
+            let vs = [e.vs[0].id, e.vs[1].id];
+            this.e.push(vs);
+            this.lMax.push(e.lMax);
+            this.maxContraction.push(e.maxContraction);
+            this.edgeChannel.push(e.edgeChannel);
+            this.edgeActive.push(e.edgeActive);
+            this.l.push(e.l);
+        }
+
+        this.faces = [];
+        for (let f of Face.all) {
+            let vs = [];
+            f.vs.forEach(v => vs.push(v.id))
+            this.faces.push(vs);
+        }
+
+        this.polytopes = [];
+        for (let p of Polytope.all) {
+            let fs = [];
+            p.fs.forEach(f => fs.push(f.id))
+            this.polytopes.push(fs);
+        }
+
+    }
+
+    static reindexObjects = (cls) => {
+        let i = 0;
+        for (let o of cls.all) {
+            o.id = i;
+            i += 1;
+        }
+    };
+
+    static clearRedundantObjects() {
+        Face.updateCitedFaces();
+        Vertex.updateCitedVertices();
+        Edge.updateCitedEdges();
+
+
+        Model.reindexObjects(Vertex);
+        Model.reindexObjects(Face);
+        Model.reindexObjects(Edge);
+        Model.reindexObjects(Polytope);
+
+    };
+
     removePolytope(iFace) {
-        // find id of polytope
-        let iPoly = -1;
-        for (let i=0; i<this.polytopes.length; i++) {
-            if (this.polytopes[i].includes(iFace)) {
-                iPoly = i;
-                break;
-            }
-        }
-        console.assert(iPoly !== -1);
-        if (iPoly === 0) return 0;
-        const polyRemove = Array.from(this.polytopes[iPoly]);
 
-        this.polytopes[iPoly] = null;
-        // null faces
-        for (let iFace=0; iFace<polyRemove.length; iFace++) {
-            this.faces[polyRemove[iFace]] = null;
-        }
-        // update id of polys
-        for (let i=0; i<this.polytopes.length; i++) {
-            if (this.polytopes[i] === null) continue;
-            for (let j=0; j<this.polytopes[i].length; j++){
-                for (let idFace of polyRemove) {
-                    if (idFace < this.polytopes[i][j]){
-                        this.polytopes[i][j] -= 1;
-                    }
-                }
-            }
-        }
-        // null redundant vertices
-        let referredVertices = new Set();
-        for (let face of this.faces) {
-            if (face === null) continue;
-            face.forEach(iv => referredVertices.add(iv));
-        }
-        let redundantVertices = new Set();
-        for (let i=0; i<this.v.length; i++) {
-            if (!referredVertices.has(i)) {
-                this.v[i] = null;
-                redundantVertices.add(i);
-            }
-        }
-        // update id of faces
-        for (let i=0; i<this.faces.length; i++) {
-            for (let j=0; j<3; j++) {   // every vertex in each face
-                for (let iv=0; iv<this.v.length; iv++) {
-                    if (this.v[iv] === null && j > iv) {
-                        this.faces[i][j] -= 1;
-                    }
-                }
-            }
-        }
+        this.updateDataStructure();
 
-        // remove edges
-        for (let j=this.e.length - 1; j>=0; j--) {
-            let iv0 = this.e[j][0];
-            let iv1 = this.e[j][1];
-            if (this.v[iv0] === null || this.v[iv1] === null) {
-                this.e.splice(j, 1);
-                continue;
-            }
-            if (this.v[iv0] !== null && this.v[iv1] !== null) {
-                let suspending = true;
-                for (let face of this.faces) {
-                    if (face === null) continue;
-                    if (face.includes(iv0) && face.includes(iv1)) suspending = false;
-                }
+        let poly = Polytope.getPolyFromIFace(iFace);
 
-                if (suspending) {this.e.splice(j, 1)}
-            }
-        }
+        console.assert(poly !== false);
 
-        // remove vertices(forces, vels)
-        for (let j=this.v.length - 1; j>=0; j--) {
-            if (this.v[j] === null) {
-                this.v.splice(j, 1);
-                this.vel.splice(j, 1);
-                this.f.splice(j, 1);
-            }
-        }
+        Polytope.all.splice(poly.id, 1);  // remove the polytope
+        Model.clearRedundantObjects();
+        this.updateFromDataStructure();
 
-        // remove faces
-        for (let j=this.faces.length - 1; j>=0; j--) {
-            if (this.faces[j] === null) {
-                this.faces.splice(j, 1);
-            }
-        }
-
-        // remove polytopes
-        for (let j=this.polytopes.length - 1; j>=0; j--) {
-            if (this.polytopes[j] === null) {
-                this.polytopes.splice(j, 1);
-            }
-        }
-
-        this.updateL(true);
     }
 
     centroid() {
@@ -490,15 +628,14 @@ class Model {
         for (let i=0; i<ids.length; i++) {
             let id = ids[i];
             if (viewer.typeSelected[i] === "joint") {
-                if (!this.fixedVs.includes(id)) {
-                    this.fixedVs.push(id);
-                }
+                this.fixedVs[id] = true;
             }
         }
     }
 
     unfixAll() {
         this.fixedVs = [];
+        this.fixedVs = new Array(this.v.length).fill(false);
     }
 
 
