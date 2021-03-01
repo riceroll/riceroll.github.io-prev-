@@ -99,6 +99,9 @@ let utils = {
         if (viewer.editingMesh) {
             utils.enable(gui.checkBoxes.addingPolytope);
             utils.enable(gui.checkBoxes.removingPolytope);
+            utils.enable(gui.sliders.rotX);
+            utils.enable(gui.sliders.rotY);
+            utils.enable(gui.sliders.rotZ);
             Model.gravity = 0;
             ground.visible = false;
             gridHelper.visible = false;
@@ -108,6 +111,9 @@ let utils = {
         else {
             utils.disable(gui.checkBoxes.addingPolytope, true);
             utils.disable(gui.checkBoxes.removingPolytope, true);
+            utils.disable(gui.sliders.rotX, true);
+            utils.disable(gui.sliders.rotY, true);
+            utils.disable(gui.sliders.rotZ, true);
             Model.gravity = 1;
             ground.visible = true;
             gridHelper.visible = true;
@@ -217,6 +223,13 @@ let utils = {
 
     },
 
+    rotate: ()=>{
+        let x = gui.sliders.rotX.getValue();
+        let y = gui.sliders.rotY.getValue();
+        let z = gui.sliders.rotZ.getValue();
+        model.rotate(x, y, z);
+    },
+
     load: ()=>{
         let input = document.createElement('input');
         document.body.appendChild(input);
@@ -308,6 +321,16 @@ function initGUI() {
     gui.folders = {};
     gui.window = new GUI();
 
+    let effectController = function () {
+        this.maxContraction = Model.maxMaxContraction;
+        this.length = 0;
+        this.friction = Model.frictionFactor;
+        this.rotX = 0;
+        this.rotY = 0;
+        this.rotZ = 0;
+    };
+    gui.effect = new effectController();
+
     let file = gui.window.addFolder('file');
     file.open();
     file.add(utils, 'load');
@@ -319,6 +342,10 @@ function initGUI() {
     gui.checkBoxes.editingMesh = shape.add(viewer, 'editingMesh').listen();
     gui.checkBoxes.addingPolytope = shape.add(viewer, 'addingPolytope').listen();
     gui.checkBoxes.removingPolytope = shape.add(viewer, 'removingPolytope').listen();
+    gui.sliders.rotX = shape.add( gui.effect, "rotX", -3.14, 3.14, 0.01).listen();
+    gui.sliders.rotY = shape.add( gui.effect, "rotY", -3.14, 3.14, 0.01).listen();
+    gui.sliders.rotZ = shape.add( gui.effect, "rotZ", -3.14, 3.14, 0.01).listen();
+
     shape.add(utils, 'fixJoints');
     shape.add(utils, 'unfixAll');
 
@@ -330,8 +357,6 @@ function initGUI() {
     utils.horizontalize(gui.folders.passive, false);
 
 
-    let effectController = function () {this.maxContraction = Model.maxMaxContraction; this.length = 0; this.friction = Model.frictionFactor;};
-    gui.effect = new effectController();
     gui.sliders.length = shape.add( gui.effect, "length", -0.5, 0.0, 0.1).listen();
     gui.sliders.maxContraction = shape.add( gui.effect, "maxContraction",
         0, Model.maxMaxContraction, Model.maxMaxContraction/4).listen();
@@ -373,7 +398,7 @@ function initGUI() {
     let simulation = gui.window.addFolder('simulation');
     simulation.open();
     gui.checkBoxes.gravity = simulation.add(model, 'gravity').listen();
-    gui.sliders.friction = simulation.add( gui.effect, "friction", 0.0, 0.9, 0.1).listen();
+    gui.sliders.friction = simulation.add( gui.effect, "friction", 0.0, 3.0, 0.1).listen();
     gui.checkBoxes.simulate = simulation.add(model, 'simulate').listen();
 
     let view = gui.window.addFolder('view');
@@ -415,10 +440,17 @@ function initGUI() {
             Model.frictionFactor = gui.sliders.friction.getValue()
         };
 
+    gui.sliders.rotX.__li.onmousemove = utils.rotate;
+    gui.sliders.rotY.__li.onmousemove = utils.rotate;
+    gui.sliders.rotZ.__li.onmousemove = utils.rotate;
+
     utils.disable(gui.sliders.maxContraction);
     utils.disable(gui.sliders.length);
     utils.disable(gui.checkBoxes.addingPolytope, true);
     utils.disable(gui.checkBoxes.removingPolytope, true);
+    utils.disable(gui.sliders.rotX, true);
+    utils.disable(gui.sliders.rotY, true);
+    utils.disable(gui.sliders.rotZ, true);
     // gui.checkBoxes.deflate.setValue(true);
     gui.checkBoxes.simulate.setValue(true);
 

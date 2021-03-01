@@ -126,12 +126,12 @@ class Polytope {
 
 
 class Model {
-    static k = 800;
+    static k = 600;
     static h = 0.04;
     static dampingRatio = 0.6;
     static maxMaxContraction = 0.35;
     static contractionPercentRate = 0.0004 / Model.h;  // contraction percentage change ratio, per time step
-    static gravityFactor = 9.8;
+    static gravityFactor = 9.8 * 0.4;
     static gravity = 1;
     static defaultMinLength = 1.2;
     static defaultMaxLength = Model.defaultMinLength / (1 - Model.maxMaxContraction);
@@ -158,7 +158,6 @@ class Model {
         this.faces = [];
         this.polytopes = [];    // indices of faces
 
-
         this.fixedVs = [];  // id of vertices that are fixed
         this.lMax = []; // maximum length
         this.maxContraction = [];  // percentage of maxMaxContraction: nE
@@ -169,6 +168,8 @@ class Model {
         this.vel = [];  // vertex velocities: nV x 3
         this.f = [];  // vertex forces: nV x 3
         this.l = [];    // current length of beams: nE
+
+        this.euler = new thre.Euler(0, 0, 0);
 
         this.simulate = true;
         this.gravity = true;
@@ -360,6 +361,7 @@ class Model {
             if (this.v[i].z < 1e-2 && this.f[i].z < 0) {
                 let f = this.vel[i].clone();
                 f.z = 0;
+                f.negate();
                 let N = this.f[i].z;
                 f = f.multiplyScalar(-Model.frictionFactor * N);
                 this.f[i].add(f);
@@ -636,7 +638,23 @@ class Model {
         this.fixedVs = new Array(this.v.length).fill(false);
     }
 
+    rotate(x, y, z) {
+        this.resetV();
 
+        let center = this.centroid();
+        let eulerInverse = new thre.Euler();
+        eulerInverse.setFromVector3(this.euler.toVector3().negate(), 'ZYX');
+        this.euler =new thre.Euler(x, y, z);
+
+        for (let i=0; i<this.v.length; i++) {
+            this.v[i].sub(center);
+            this.v[i].applyEuler(eulerInverse);
+            this.v[i].applyEuler(this.euler);
+            this.v[i].add(center);
+        }
+
+        this.recordV();
+    }
 
 
 
