@@ -173,6 +173,7 @@ class Model {
 
         this.simulate = true;
         this.gravity = true;
+        this.directional = false;
 
         this.numChannels = 4;
 
@@ -357,16 +358,24 @@ class Model {
         }
 
         // friction
-        for (let i=0; i<this.v.length; i++) {
-            if (this.v[i].z < 1e-2 && this.f[i].z < 0) {
-                let f = this.vel[i].clone();
-                f.z = 0;
-                f.negate();
-                let N = this.f[i].z;
-                f = f.multiplyScalar(-Model.frictionFactor * N);
-                this.f[i].add(f);
-            }
-        }
+        // for (let i=0; i<this.v.length; i++) {
+        //     if (this.v[i].z < 1e-2 && this.f[i].z < 0) {
+        //         if (this.vel[i].length() < 1e-4) {
+        //             continue;
+        //         }
+        //
+        //         let f = this.vel[i].clone();
+        //         f.z = 0;
+        //         f.normalize();
+        //         f.negate();
+        //         let N = Math.abs(this.f[i].z);
+        //         let fFriction = Model.frictionFactor;
+        //         f = f.multiplyScalar(fFriction);
+        //
+        //         this.f[i].add(f);
+        //
+        //     }
+        // }
     }
 
     step(n=1) {
@@ -378,6 +387,18 @@ class Model {
             for (let i=0; i<this.v.length; i++) {
                 if (!this.fixedVs[i]) {
                     this.vel[i].add(this.f[i].clone().multiplyScalar(Model.h));
+                    if (this.v[i].z <= 0) {
+                        // friction
+                        if (this.directional) {
+                            if (this.vel[i].x < 0) this.vel[i].x *= (1 - Model.frictionFactor);
+                            if (this.vel[i].y < 0) this.vel[i].y *= (1 - Model.frictionFactor);
+                        }
+                        else {
+                            this.vel[i].x *= (1 - Model.frictionFactor);
+                            this.vel[i].y *= (1 - Model.frictionFactor);
+                        }
+                    }
+
                     this.vel[i].multiplyScalar(Model.dampingRatio);   // damping
                     this.v[i].add(this.vel[i].clone().multiplyScalar(Model.h));
                 }
