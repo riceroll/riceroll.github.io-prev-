@@ -14,7 +14,9 @@ class Viewer {
     static passiveColor = new thre.Color(0.7, 0.9, 0.7);
     static channelColors = [
         new thre.Color(0.5, 0.5, 0.8),
-        new thre.Color(0.8, 0.8, 0.5)
+        new thre.Color(0.8, 0.8, 0.5),
+        new thre.Color(0.8, 0.5, 0.8),
+        new thre.Color(0.5, 0.8, 0.8),
     ];
 
     constructor(model) {

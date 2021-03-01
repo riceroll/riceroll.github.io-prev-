@@ -198,6 +198,9 @@ let utils = {
                     ul.children[i].children[0].children[0].style.width = "100%";
                     ul.children[i].children[0].children[0].style.textAlign = "center";
                 }
+                else {
+                    ul.children[i].children[0].children[0].style.display = "none";
+                }
             }
             catch (e) {}
             if (i !== 0) {

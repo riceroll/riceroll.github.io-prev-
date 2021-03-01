@@ -126,12 +126,12 @@ class Polytope {
 
 
 class Model {
-    static k = 200;
+    static k = 800;
     static h = 0.04;
     static dampingRatio = 0.6;
     static maxMaxContraction = 0.35;
     static contractionPercentRate = 0.0004 / Model.h;  // contraction percentage change ratio, per time step
-    static gravityFactor = 9.8 * 0.1;
+    static gravityFactor = 9.8;
     static gravity = 1;
     static defaultMinLength = 1.2;
     static defaultMaxLength = Model.defaultMinLength / (1 - Model.maxMaxContraction);
@@ -173,7 +173,7 @@ class Model {
         this.simulate = true;
         this.gravity = true;
 
-        this.numChannels = 2;
+        this.numChannels = 4;
 
         if (!this.inflateChannel) {
             this.inflateChannel = new Array(this.numChannels).fill(false);
