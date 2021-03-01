@@ -1,5 +1,7 @@
 import * as THREE from '../../node_modules/three/build/three.module.js';
 import { OrbitControls } from '../../node_modules/three/examples/jsm/controls/OrbitControls.js';
+import { SelectionBox } from '../../node_modules/three/examples/jsm/interactive/SelectionBox.js';
+import { SelectionHelper } from '../../node_modules/three/examples/jsm/interactive/SelectionHelper.js';
 import { GUI } from '../../node_modules/three/examples/jsm/libs/dat.gui.module.js';
 
 import { Model } from './model.js';
@@ -8,12 +10,14 @@ import { Remesher } from './remesher.js';
 
 let camera, scene, renderer, controls;
 let mouse = new THREE.Vector2();
+let mouseDown = false;
 let raycaster = new THREE.Raycaster();
 let gui;
 let dashboard = {};
 let information;
 let infoJoints, infoBeams;
 let inputFileString;
+let selectionBox, selectionHelper;
 
 let lastX = 0;
 let lastY = 0;
@@ -82,8 +86,9 @@ function initScene() {
     gridHelper.position.z = 0;
     scene.add( gridHelper );
 
-
-
+    selectionBox = new SelectionBox(camera, scene);
+    selectionHelper = new SelectionHelper(selectionBox, renderer, 'selectBox');
+    selectionHelper.element.style.display = 'none';
 }
 
 
@@ -166,6 +171,10 @@ let utils = {
         for (let i=0; i<viewer.idSelected.length; i++){
             if (viewer.typeSelected[i] === "beam") {
                 model.edgeActive[viewer.idSelected[i]] = true;
+                model.lMax[viewer.idSelected[i]] = Model.defaultMaxLength;
+                if (viewer.idSelected.length === 1 && viewer.typeSelected[0] === 'beam') {
+                    gui.sliders.maxContraction.setValue(model.maxContraction[viewer.idSelected[0]]);
+                }
             }
         }
         utils.enable(gui.sliders.maxContraction);
@@ -235,7 +244,6 @@ let utils = {
                     let edgeChannel = data.edgeChannel;
                     let edgeActive = data.edgeActive;
                     model.loadData(v, e, f, p, lMax, maxContraction, fixedVs, edgeChannel, edgeActive);
-                    console.log('hehe');
                     model.init(false);
                 }
                 else {
@@ -465,18 +473,12 @@ function onWindowResize() {
     renderer.setSize( window.innerWidth, window.innerHeight );
 }
 
-function onMouseClick(event) {
-    mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
-    mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
-
-    if (utils.mouseOverGUI) {
-        return 0;
-    }
-
-    utils.disable(gui.sliders.maxContraction);
-    utils.disable(gui.sliders.length);
-    let obj = objectCasted();
+function select(obj) {
     if (!obj) return 0;
+
+    if (!obj.userData.type) return 0;   // unpredicted object type, e.g. GridHelper
+
+    if (!obj.visible) return 0;
 
     // deselect with meta pressed
     let existed = false;
@@ -499,14 +501,6 @@ function onMouseClick(event) {
         viewer.typeSelected.push(obj.userData.type);
     }
 
-
-    //slider
-    if (viewer.idSelected.length === 1 && viewer.typeSelected[0] === 'beam') {
-        gui.sliders.maxContraction.setValue(model.maxContraction[viewer.idSelected[0]]);
-        gui.sliders.length.setValue(model.lMax[viewer.idSelected[0]] - Model.defaultMaxLength);
-    }
-
-
     if (viewer.typeSelected.includes("beam")) {
         let anyActive = false;
         let anyPassive = false;
@@ -525,6 +519,27 @@ function onMouseClick(event) {
         if (!anyActive) {
             utils.enable(gui.sliders.length);
         }
+    }
+}
+
+function onMouseClick(event) {
+    mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
+    mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+
+    if (utils.mouseOverGUI) {
+        return 0;
+    }
+
+    utils.disable(gui.sliders.maxContraction);
+    utils.disable(gui.sliders.length);
+    let obj = objectCasted();
+
+    select(obj);
+
+    //slider
+    if (viewer.idSelected.length === 1 && viewer.typeSelected[0] === 'beam') {
+        gui.sliders.maxContraction.setValue(model.maxContraction[viewer.idSelected[0]]);
+        gui.sliders.length.setValue(model.lMax[viewer.idSelected[0]] - Model.defaultMaxLength);
     }
 
     if (viewer.editingMesh && viewer.idSelected.length === 1 && viewer.typeSelected[0] === "face") {
@@ -547,13 +562,17 @@ function onMouseClick(event) {
 }
 
 function onMouseDown(event) {
+    mouseDown = true;
     mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
     mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
     lastX = mouse.x;
     lastY = mouse.y;
+    selectionBox.startPoint.set(mouse.x, mouse.y, 0.5);
+
 }
 
 function onMouseUp(event) {
+    mouseDown = false;
     mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
     mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
 
@@ -569,37 +588,54 @@ function onMouseUp(event) {
             viewer.idSelected = [];
         }
     }
-
 }
-
 
 function onMouseMove( event ) {
     mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
     mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
 
-    let obj = objectCasted();
+    if (mouseDown && viewer.pressingShift) {
+        viewer.typeSelected = [];
+        viewer.idSelected = [];
 
-    if (obj) {
-        viewer.idHovered = obj.userData.id;
-        viewer.typeHovered = obj.userData.type;
+        selectionBox.endPoint.set(mouse.x, mouse.y, 0.5);
+        selectionBox.select();
+        for (let i=0; i<selectionBox.collection.length; i++) {
+            select(selectionBox.collection[i]);
+        }
     }
     else {
-        viewer.idHovered = null;
-        viewer.typeHovered = null;
+        let obj = objectCasted();
+
+        if (obj) {
+            viewer.idHovered = obj.userData.id;
+            viewer.typeHovered = obj.userData.type;
+        }
+        else {
+            viewer.idHovered = null;
+            viewer.typeHovered = null;
+        }
     }
-
-
-
 }
 
 function onKeyDown( e ) {
     viewer.pressingMeta = e.key === 'Meta';
+    if (e.key === "Shift") {
+        viewer.pressingShift = true;
+        controls.enabled = false;
+        selectionHelper.element.style.display = "block";
+    }
 }
 
 
 function onKeyUp( e ) {
     if (e.key === 'Meta') {
         viewer.pressingMeta = false;
+    }
+    if (e.key === "Shift") {
+        viewer.pressingShift = false;
+        controls.enabled = true;
+        selectionHelper.element.style.display = "none";
     }
 }
 
@@ -644,3 +680,6 @@ window.renderer = renderer;
 // window.controls = controls;
 window.gui = gui;
 window.utils = utils;
+window.selectionBox = selectionBox;
+window.controls = controls;
+window.selectionHelper = selectionHelper;

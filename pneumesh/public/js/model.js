@@ -125,8 +125,6 @@ class Polytope {
 }
 
 
-
-
 class Model {
     static k = 200;
     static h = 0.04;
@@ -376,7 +374,7 @@ class Model {
             this.update();
 
             for (let i=0; i<this.v.length; i++) {
-                if (!this.fixedVs.includes(i)) {
+                if (!this.fixedVs[i]) {
                     this.vel[i].add(this.f[i].clone().multiplyScalar(Model.h));
                     this.vel[i].multiplyScalar(Model.dampingRatio);   // damping
                     this.v[i].add(this.vel[i].clone().multiplyScalar(Model.h));

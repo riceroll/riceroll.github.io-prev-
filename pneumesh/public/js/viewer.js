@@ -28,6 +28,7 @@ class Viewer {
         this.mesh = new thre.Object3D();
 
         this.pressingMeta = false;
+        this.pressingShift = false;
         this.editingMesh = false;
         this.addingPolytope = false;
         this.removingPolytope = false;
