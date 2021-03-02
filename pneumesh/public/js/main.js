@@ -6,7 +6,6 @@ import { GUI } from '../../node_modules/three/examples/jsm/libs/dat.gui.module.j
 
 import { Model } from './model.js';
 import { Viewer } from './viewer.js';
-import { Remesher } from './remesher.js';
 
 let camera, scene, renderer, controls;
 let mouse = new THREE.Vector2();
@@ -38,7 +37,6 @@ function initScene() {
     info.style.textAlign = 'center';
     info.style.color = '#fff';
     info.style.link = '#f80';
-    // info.innerHTML = 'PneuMesh';
     document.body.appendChild( info );
 
     renderer = new THREE.WebGLRenderer({antialias: true});
@@ -423,7 +421,7 @@ function initGUI() {
 
     // gui functions =============================================
     // maxContraction
-    gui.sliders.maxContraction.__li.onclick =
+    gui.sliders.maxContraction.__li.onmousemove =
         () => {
             for (let i=0; i<viewer.idSelected.length; i++) {
                 if (viewer.typeSelected[i] === 'beam') {
@@ -431,7 +429,7 @@ function initGUI() {
                 }
             }
     };
-    gui.sliders.length.__li.onclick =
+    gui.sliders.length.__li.onmousemove =
         () => {
             for (let i=0; i<viewer.idSelected.length; i++) {
                 if (viewer.typeSelected[i] === 'beam') {
@@ -439,7 +437,7 @@ function initGUI() {
                 }
             }
     };
-    gui.sliders.friction.__li.onclick =
+    gui.sliders.friction.__li.onmousemove =
         () => {
             Model.frictionFactor = gui.sliders.friction.getValue();
         };
