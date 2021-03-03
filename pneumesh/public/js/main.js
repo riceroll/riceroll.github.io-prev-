@@ -6,6 +6,7 @@ import { GUI } from '../../node_modules/three/examples/jsm/libs/dat.gui.module.j
 
 import { Model } from './model.js';
 import { Viewer } from './viewer.js';
+import { Optimizer } from './optimizer.js';
 
 let camera, scene, renderer, controls;
 let mouse = new THREE.Vector2();
@@ -26,6 +27,7 @@ let ground;
 
 let model = new Model();
 let viewer = new Viewer(model);
+let optimizer = new Optimizer(model);
 
 
 function initScene() {
@@ -71,10 +73,12 @@ function initScene() {
     scene.add( aLight );
 
     // ground
-    const planeGeometry = new THREE.PlaneGeometry( 1000, 1000);
+    const planeGeometry = new THREE.PlaneGeometry( 10000, 10000);
     const planeMaterial = new THREE.ShadowMaterial({opacity:0.2});
     ground = new THREE.Mesh( planeGeometry, planeMaterial);
     ground.position.z = 0;
+    ground.position.x = 0;
+    ground.position.y = 0;
     ground.receiveShadow = true;
     scene.add( ground );
 
@@ -720,3 +724,5 @@ window.utils = utils;
 window.selectionBox = selectionBox;
 window.controls = controls;
 window.selectionHelper = selectionHelper;
+
+window.optimizer = optimizer;

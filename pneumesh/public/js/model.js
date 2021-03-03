@@ -126,9 +126,9 @@ class Polytope {
 
 
 class Model {
-    static k = 600;
-    static h = 0.03;
-    static dampingRatio = 0.6;
+    static k = 2000;
+    static h = 0.01;
+    static dampingRatio = 0.8;
     static maxMaxContraction = 0.35;
     static contractionPercentRate = 0.0004 / Model.h;  // contraction percentage change ratio, per time step
     static gravityFactor = 9.8 * 0.4;
@@ -168,6 +168,8 @@ class Model {
         this.vel = [];  // vertex velocities: nV x 3
         this.f = [];  // vertex forces: nV x 3
         this.l = [];    // current length of beams: nE
+
+        this.numSteps = 0;
 
         this.euler = new thre.Euler(0, 0, 0);
 
@@ -276,6 +278,8 @@ class Model {
         for (let i=0; i<this.v.length; i++) {
             this.v[i] = this.v0[i].clone();
         }
+
+        this.numSteps = 0;
     }
 
     updateData(updateAll = false) {
@@ -358,30 +362,18 @@ class Model {
         }
 
         // friction
-        // for (let i=0; i<this.v.length; i++) {
-        //     if (this.v[i].z < 1e-2 && this.f[i].z < 0) {
-        //         if (this.vel[i].length() < 1e-4) {
-        //             continue;
-        //         }
-        //
-        //         let f = this.vel[i].clone();
-        //         f.z = 0;
-        //         f.normalize();
-        //         f.negate();
-        //         let N = Math.abs(this.f[i].z);
-        //         let fFriction = Model.frictionFactor;
-        //         f = f.multiplyScalar(fFriction);
-        //
-        //         this.f[i].add(f);
-        //
-        //     }
-        // }
+
+
     }
 
-    step(n=1) {
+    step(n=1, actuating = false) {
         if (!this.simulate) {return}
 
         for (let iStep=0; iStep<n; iStep++) {
+            if (actuating) {
+                this.inflateChannel[0] = Math.floor(this.numSteps / 100) % 2;
+            }
+
             this.update();
 
             for (let i=0; i<this.v.length; i++) {
@@ -404,7 +396,6 @@ class Model {
                 }
             }
 
-
             for (let i=0; i<this.v.length; i++) {
                 if (this.v[i].z < 0)
                 {
@@ -413,8 +404,10 @@ class Model {
                 }
             }
 
-
+            this.numSteps += 1;
         }
+
+        return this.v;
     }
 
     addPolytope(iFace) {

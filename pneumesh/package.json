@@ -20,6 +20,7 @@
   "dependencies": {
     "browserify": "^16.5.1",
     "express": "^4.17.1",
+    "genetic-js": "^0.1.14",
     "three": "^0.116.1"
   }
 }
