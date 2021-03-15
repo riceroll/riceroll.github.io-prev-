@@ -1,7 +1,3 @@
-/*
- *  three.js NRRD file loader
- */
-
 import {
 	FileLoader,
 	Loader,
@@ -28,9 +24,29 @@ NRRDLoader.prototype = Object.assign( Object.create( Loader.prototype ), {
 		var loader = new FileLoader( scope.manager );
 		loader.setPath( scope.path );
 		loader.setResponseType( 'arraybuffer' );
+		loader.setRequestHeader( scope.requestHeader );
+		loader.setWithCredentials( scope.withCredentials );
 		loader.load( url, function ( data ) {
 
-			onLoad( scope.parse( data ) );
+			try {
+
+				onLoad( scope.parse( data ) );
+
+			} catch ( e ) {
+
+				if ( onError ) {
+
+					onError( e );
+
+				} else {
+
+					console.error( e );
+
+				}
+
+				scope.manager.itemError( url );
+
+			}
 
 		}, onProgress, onError );
 

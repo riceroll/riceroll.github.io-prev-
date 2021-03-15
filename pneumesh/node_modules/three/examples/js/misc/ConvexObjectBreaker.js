@@ -1,6 +1,4 @@
 /**
- * @author yomboprime https://github.com/yomboprime
- *
  * @fileoverview This class can be used to subdivide a convex Geometry object into pieces.
  *
  * Usage:

@@ -1,7 +1,3 @@
-/**
- * @author mrdoob / http://mrdoob.com/
- */
-
 THREE.OBJExporter = function () {};
 
 THREE.OBJExporter.prototype = {

@@ -24,7 +24,6 @@ class Vertex {
         vs.forEach(v => vsSet.add(v));
         Vertex.all = Array.from(vsSet);
     }
-
 }
 
 class Edge {
@@ -126,16 +125,18 @@ class Polytope {
 
 
 class Model {
-    static k = 2000;
-    static h = 0.01;
+    static k = 600;
+    static h = 0.03;
     static dampingRatio = 0.8;
     static maxMaxContraction = 0.35;
     static contractionPercentRate = 0.0004 / Model.h;  // contraction percentage change ratio, per time step
-    static gravityFactor = 9.8 * 0.4;
-    static gravity = 1;
+    static gravityFactor = 9.8 * 0.8;
+    static gravity = 1;     // if gravity is on
     static defaultMinLength = 1.2;
     static defaultMaxLength = Model.defaultMinLength / (1 - Model.maxMaxContraction);
     static frictionFactor = 0.8;
+
+    static numStepsAction = 100;
 
     constructor() {
         this.viewer = null;
@@ -150,6 +151,7 @@ class Model {
 
         this.loadData();
         this.init();
+        this.recordV();
     }
 
     reset() {
@@ -159,15 +161,18 @@ class Model {
         this.polytopes = [];    // indices of faces
 
         this.fixedVs = [];  // id of vertices that are fixed
+        this.edgeActive = [];  // if beam is active: nE
         this.lMax = []; // maximum length
         this.maxContraction = [];  // percentage of maxMaxContraction: nE
         this.edgeChannel = [];  // id of beam edgeChannel: nE
-        this.edgeActive = [];  // if beam is active: nE
 
         this.v0 = [];
         this.vel = [];  // vertex velocities: nV x 3
         this.f = [];  // vertex forces: nV x 3
         this.l = [];    // current length of beams: nE
+
+        this.script = [];    // nTimeSteps x nChannels
+        this.iAction = 0;
 
         this.numSteps = 0;
 
@@ -187,7 +192,7 @@ class Model {
 
     }
 
-    loadData(v, e, f, p, lMax, maxContraction, fixedVs, edgeChannel, edgeActive){
+    loadData(v, e, f, p, lMax=null, maxContraction=null, fixedVs=null, edgeChannel=null, edgeActive=null, script=[]){
         if (v) {
             this.v = v;
             this.e = e;
@@ -219,13 +224,12 @@ class Model {
             ];
         }
 
-        if (lMax) {
-            this.lMax = lMax;
-            this.maxContraction = maxContraction;
-            this.fixedVs = fixedVs;
-            this.edgeChannel = edgeChannel;
-            this.edgeActive = edgeActive;
-        }
+        if (lMax) this.lMax = lMax;
+        if (maxContraction) this.maxContraction = maxContraction;
+        if (fixedVs) this.fixedVs = fixedVs;
+        if (edgeChannel) this.edgeChannel = edgeChannel;
+        if (edgeActive) this.edgeActive = edgeActive;
+        if (script) this.script = script;
     }
 
     saveData() {
@@ -263,8 +267,6 @@ class Model {
             this.vel.push(new thre.Vector3());
             this.f.push(new thre.Vector3());
         }
-
-        this.recordV();
     }
 
     recordV() {
@@ -290,18 +292,26 @@ class Model {
         }
 
         if (updateAll) {
-            this.lMax = Array.from(this.l);
-            for (let i=0; i<this.e.length; i++) {
-                this.lMax[i] /= 1 - Model.maxMaxContraction;
+            if (this.lMax.length === 0) {
+                this.lMax = Array.from(this.l);
+                for (let i = 0; i < this.e.length; i++) {
+                    this.lMax[i] /= 1 - Model.maxMaxContraction;
+                }
             }
 
-            this.maxContraction = new Array(this.e.length).fill(Model.maxMaxContraction);
-            this.edgeChannel = new Array(this.e.length).fill(0);
-            this.edgeActive = new Array(this.e.length).fill(true);
-            this.fixedVs = new Array(this.v.length).fill(false);
+            if (this.fixedVs.length === 0) {
+                this.fixedVs = new Array(this.v.length).fill(false);
+            }
+
+            if (this.edgeActive.length === 0) {
+                this.edgeActive = new Array(this.e.length).fill(true);
+            }
+
+            if (this.maxContraction.length === 0) this.maxContraction = new Array(this.e.length).fill(Model.maxMaxContraction);
+            if (this.edgeChannel.length === 0) this.edgeChannel = new Array(this.e.length).fill(0);
+
             this.recordV();
         }
-
     }
 
     update() {
@@ -362,18 +372,27 @@ class Model {
         }
 
         // friction
-
-
     }
 
-    step(n=1, actuating = false) {
+    runScript() {
+        if (this.script.length === 0) return 0;
+
+        if (this.numSteps > ((this.iAction + 1) % this.script.length) * Model.numStepsAction ) {
+            this.iAction = Math.floor(this.numSteps / Model.numStepsAction) % this.script.length;
+
+            let action = this.script[this.iAction];
+            for (let iChannel=0; iChannel<action.length; iChannel++) {
+                this.inflateChannel[iChannel] = action[iChannel];
+            }
+        }
+    }
+
+    step(n=1) {
         if (!this.simulate) {return}
 
-        for (let iStep=0; iStep<n; iStep++) {
-            if (actuating) {
-                this.inflateChannel[0] = Math.floor(this.numSteps / 100) % 2;
-            }
+        this.runScript();
 
+        for (let iStep=0; iStep<n; iStep++) {
             this.update();
 
             for (let i=0; i<this.v.length; i++) {

@@ -266,10 +266,12 @@ let utils = {
                     let edgeActive = data.edgeActive;
                     model.loadData(v, e, f, p, lMax, maxContraction, fixedVs, edgeChannel, edgeActive);
                     model.init(false);
+                    this.recordV();
                 }
                 else {
                     model.loadData(v, e, f, p);
                     model.init(true);
+                    this.recordV();
                 }
                 scene.children.splice(4, 1);
                 viewer.reset(model);
@@ -293,6 +295,10 @@ let utils = {
         download.href = 'data:text/plain;charset=utf-8,' + encodeURIComponent(json);
         download.click();
 
+    },
+
+    optimize: ()=> {
+        optimizer.optimize();
     },
 
     selectChannel : (id)=>{
@@ -340,6 +346,7 @@ function initGUI() {
     file.open();
     file.add(utils, 'load');
     file.add(utils, 'save');
+    file.add(utils, 'optimize');
     // file.add(utils, 'remesh');
 
     let shape = gui.window.addFolder('shape');
@@ -432,7 +439,7 @@ function initGUI() {
                     model.maxContraction[viewer.idSelected[i]] = gui.sliders.maxContraction.getValue();
                 }
             }
-    };
+        };
     gui.sliders.length.__li.onmousemove =
         () => {
             for (let i=0; i<viewer.idSelected.length; i++) {
@@ -440,7 +447,7 @@ function initGUI() {
                     model.lMax[viewer.idSelected[i]] = Model.defaultMaxLength + gui.sliders.length.getValue();
                 }
             }
-    };
+        };
     gui.sliders.friction.__li.onmousemove =
         () => {
             Model.frictionFactor = gui.sliders.friction.getValue();
@@ -596,10 +603,7 @@ function onMouseClick(event) {
         viewer.idSelected = [];
         viewer.typeSelected = [];
         viewer.createAll();
-
     }
-
-
 }
 
 function onMouseDown(event) {
@@ -704,10 +708,10 @@ scene.add(viewer.mesh);
 animate();
 
 window.addEventListener( 'resize', onWindowResize, false );
-window.addEventListener( 'mousedown', onMouseClick, false );
-window.addEventListener( 'mouseup', onMouseUp, false );
-window.addEventListener( 'mousemove', onMouseMove, false );
-window.addEventListener( 'mousedown', onMouseDown, false );
+window.addEventListener( 'pointerdown', onMouseClick, false );
+window.addEventListener( 'pointerup', onMouseUp, false );
+window.addEventListener( 'pointermove', onMouseMove, false );
+window.addEventListener( 'pointerdown', onMouseDown, false );
 window.addEventListener( 'keydown', onKeyDown, false );
 window.addEventListener( 'keyup', onKeyUp, false );
 

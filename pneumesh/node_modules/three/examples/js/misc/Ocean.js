@@ -1,7 +1,3 @@
-/*
-	three.js Ocean
-*/
-
 THREE.Ocean = function ( renderer, camera, scene, options ) {
 
 	// flag used to trigger parameter changes
@@ -52,7 +48,6 @@ THREE.Ocean = function ( renderer, camera, scene, options ) {
 		wrapS: THREE.ClampToEdgeWrapping,
 		wrapT: THREE.ClampToEdgeWrapping,
 		format: THREE.RGBAFormat,
-		stencilBuffer: false,
 		depthBuffer: false,
 		premultiplyAlpha: false,
 		type: renderTargetType
@@ -63,7 +58,6 @@ THREE.Ocean = function ( renderer, camera, scene, options ) {
 		wrapS: THREE.ClampToEdgeWrapping,
 		wrapT: THREE.ClampToEdgeWrapping,
 		format: THREE.RGBAFormat,
-		stencilBuffer: false,
 		depthBuffer: false,
 		premultiplyAlpha: false,
 		type: renderTargetType
@@ -74,7 +68,6 @@ THREE.Ocean = function ( renderer, camera, scene, options ) {
 		wrapS: THREE.RepeatWrapping,
 		wrapT: THREE.RepeatWrapping,
 		format: THREE.RGBAFormat,
-		stencilBuffer: false,
 		depthBuffer: false,
 		premultiplyAlpha: false,
 		type: renderTargetType
@@ -183,6 +176,7 @@ THREE.Ocean = function ( renderer, camera, scene, options ) {
 	this.materialOcean.uniforms.u_skyColor = { value: this.skyColor };
 	this.materialOcean.uniforms.u_sunDirection = { value: new THREE.Vector3( this.sunDirectionX, this.sunDirectionY, this.sunDirectionZ ) };
 	this.materialOcean.uniforms.u_exposure = { value: this.exposure };
+	this.materialOcean.uniforms.u_size = { value: this.size };
 
 	// Disable blending to prevent default premultiplied alpha values
 	this.materialOceanHorizontal.blending = 0;

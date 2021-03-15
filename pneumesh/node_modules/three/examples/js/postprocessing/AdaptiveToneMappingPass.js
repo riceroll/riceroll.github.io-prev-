@@ -1,5 +1,4 @@
 /**
- * @author miibond
  * Generate a texture that represents the luminosity of the current scene, adapted over time
  * to simulate the optic nerve responding to the amount of light it is receiving.
  * Based on a GDC2007 presentation by Wolfgang Engel titled "Post-Processing Pipeline"

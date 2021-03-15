@@ -1,5 +1,3 @@
-import { Genetic } from '../../node_modules/genetic-js/lib/genetic.js';
-
 
 /**
  * Created by Roll on 2021/3/2.
@@ -11,80 +9,148 @@ class Optimizer {
 
     constructor(model) {
         this.model = model;
-
-        this.config = {
-            "iterations": 500,
-            "size": 50,
-            "crossover": 0.5,
-            "mutation": 0.5,
-            "skip": 10
+        this.interval = 0.35 / 4;
+        this.space = [0, this.interval, this.interval*2, this.interval*3, this.interval*4];
+        this.x = {
+            'maxContraction': [],
+            'edgeChannel': [],
+            'script': []
         };
+        this.actuating = 0;
 
-        this.userData = {
-            "x" : this.model.maxContraction,
-        };
+        this.nActions = 2;
+        this.nStepsTest = this.nActions * this.model.numStepsAction;
+        this.nChannels = 2;
+    }
 
-        let interval = 0.35 / 4;
-        this.space = [0, interval, interval*2, interval*3, interval*4];
+    annealing = function ({
+                              initialState,
+                              tempMax,
+                              tempMin,
+                              newState,
+                              getTemp,
+                              getEnergy,
+                          } = {}) {
+        if (!this.isFunction(newState)) {
+            throw new Error('newState is not function.');
+        }
+        if (!this.isFunction(getTemp)) {
+            throw new Error('getTemp is not function.');
+        }
+        if (!this.isFunction(getEnergy)) {
+            throw new Error('getEnergy is not function.');
+        }
 
-        this.genetic = Genetic.create();
+        let currentTemp = tempMax;
 
-        this.genetic.optimize = Genetic.Optimize.Minimize;
-        this.genetic.select1 = Genetic.Select1.Tournament2;
-        this.genetic.select2 = Genetic.Select2.FittestRandom;
+        let lastState = initialState;
+        let lastEnergy = getEnergy(lastState);
 
-        this.randomConstraint = () => {
-            return Math.floor(Math.random() * (this.space.length - 1e-5));
-        };
+        let bestState = lastState;
+        let bestEnergy = lastEnergy;
 
-        this.genetic.seed = () => {
+        let maxIter = 2000;
+        let iter = 0;
+        while (currentTemp > tempMin) {
+            iter += 1;
+            if (iter > maxIter) break;
+            let currentState = newState(lastState);
+            let currentEnergy = getEnergy(currentState);
 
-            let x = this.model.maxContraction;
-            for (let i = 0; i < x.length; i++) {
-                let j = this.randomConstraint();
-                x[i] = this.space[j];
-
+            if (currentEnergy < lastEnergy) {
+                lastState = currentState;
+                lastEnergy = currentEnergy;
+            } else {
+                if (Math.random() <= Math.exp(-(currentEnergy - lastEnergy)/currentTemp)) {
+                    lastState = currentState;
+                    lastEnergy = currentEnergy;
+                }
             }
-            return x ;
+
+            if (bestEnergy > lastEnergy) {
+                bestState = lastState;
+                bestEnergy = lastEnergy;
+            }
+            currentTemp = getTemp(currentTemp);
+        }
+        return bestState;
+    };
+
+    isFunction = function(functionToCheck) {
+        return functionToCheck && {}.toString.call(functionToCheck) === '[object Function]';
+    };
+
+    optimize() {
+        let getEnergy = (x) => {
+            this.model.loadData(this.model.v0, this.model.e, this.model.faces, this.model.polytopes,
+                null, x.maxContraction, null, x.edgeChannel, null, x.script);
+            this.model.iAction = 0;
+            this.model.numSteps = 0;
+
+            this.model.step(this.nStepsTest);
+
+            let center = this.model.centroid();
+            return center.x;
         };
 
-        this.genetic.mutate = (x) => {
-            let i = Math.floor(Math.random() * x.length);
-            x[i] = this.randomConstraint();
+        let newState = (x) => {
+            let nBeams = Math.floor(Math.random() * (x.maxContraction.length - 1e-5)) + 1;
+
+            for (let iRand=0; iRand < nBeams; iRand++) {
+                let iBeam = Math.floor(Math.random() * (x.maxContraction.length - 1e-5));
+                x.maxContraction[iBeam] = this.space[Math.floor(Math.random() * (this.space.length - 1e-5))];
+                x.edgeChannel[iBeam] = Math.floor(Math.random() * (this.nChannels - 1e-5));
+            }
+
+            let nAction = Math.floor(Math.random() * (x.script.length - 1e-5)) + 1;
+
+            for (let iRand=0; iRand < nAction; iRand++) {
+                let iAction = Math.floor(Math.random() * (x.script.length - 1e-5));
+                let iChannel = Math.floor(Math.random() * (this.nChannels - 1e-5));
+                x.script[iAction][iChannel] = Math.floor(Math.random() * 1.99999);
+            }
+
             return x;
         };
 
-        this.genetic.crossover = (x0, x1) => {
-            let i = Math.floor(Math.random() * x0.length);
-            [x0[i], x1[i]] = [x1[i], x0[i]];
-            return [x0, x1];
+        let getTemp = (tmp) => {
+            return tmp - 0.001;
         };
 
-        this.genetic.fitness = (x) => {
-            this.model.resetV();
-            this.model.constraints = x;
-            this.model.step(400, true);
-            let center = this.model.centroid();
-            let sum = 0;
-            x.forEach((i)=>sum+=i);
-            return center.x + sum / x.length;
-        };
 
-        this.genetic.generation = (pop, generation, stats) => {
+        this.x.maxContraction = this.model.maxContraction;
+        this.x.edgeChannel = this.model.edgeChannel;
+        this.x.script = new Array(this.nActions);
+        for (let i=0; i<this.x.script.length; i++) {
+            this.x.script[i] = new Array(this.nChannels);
+            this.x.script[i].fill(1);
+        }
 
-        };
+        let initialState = this.x;
+        let tempMax = 15;
+        let tempMin = 0.001;
 
-        this.genetic.notification = (pop, generation, stats, isFinished) => {
-            console.log("stats: ", stats);
-        };
+
+        let result = this.annealing({
+            initialState : initialState,
+            tempMax : tempMax,
+            tempMin : tempMin,
+            newState : newState,
+            getTemp : getTemp,
+            getEnergy : getEnergy
+        });
+
+        console.log(result);
+        this.x = result;
+        let x = this.x;
+
+        this.model.loadData(this.model.v0, this.model.e, this.model.faces, this.model.polytopes,
+            null, x.maxContraction, null, x.edgeChannel, null, x.script);
+
     }
-
-    evolve = () => {
-        this.genetic.evolve(this.config, this.userData);
-    }
-
-
 
 
 }
+
+
 export{Optimizer};

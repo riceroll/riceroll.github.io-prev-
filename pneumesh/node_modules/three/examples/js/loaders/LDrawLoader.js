@@ -1,11 +1,3 @@
-/**
- * @author mrdoob / http://mrdoob.com/
- * @author yomboprime / https://github.com/yomboprime/
- * @author gkjohnson / https://github.com/gkjohnson/
- *
- *
- */
-
 THREE.LDrawLoader = ( function () {
 
 	var conditionalLineVertShader = /* glsl */`
@@ -590,6 +582,8 @@ THREE.LDrawLoader = ( function () {
 
 			var fileLoader = new THREE.FileLoader( this.manager );
 			fileLoader.setPath( this.path );
+			fileLoader.setRequestHeader( this.requestHeader );
+			fileLoader.setWithCredentials( this.withCredentials );
 			fileLoader.load( url, function ( text ) {
 
 				scope.processObject( text, onLoad, null, url );
@@ -1903,6 +1897,8 @@ THREE.LDrawLoader = ( function () {
 				// and use it when processing the next model.
 				var fileLoader = new THREE.FileLoader( scope.manager );
 				fileLoader.setPath( scope.path );
+				fileLoader.setRequestHeader( scope.requestHeader );
+				fileLoader.setWithCredentials( scope.withCredentials );
 				fileLoader.load( subobjectURL, function ( text ) {
 
 					scope.processObject( text, function ( subobjectGroup ) {

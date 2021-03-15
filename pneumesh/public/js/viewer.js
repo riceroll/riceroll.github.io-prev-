@@ -11,7 +11,7 @@ class Viewer {
     static selectedColor = new thre.Color(0.8, 0.2, 0.2);
     static HoveredColor = new thre.Color(1.0, 0.8, 0.8);
     static fixedColor = new thre.Color(0.2, 0.8, 0.8);
-    static passiveColor = new thre.Color(0.7, 0.9, 0.7);
+    static passiveColor = new thre.Color(0.5, 0.5, 0.5);
     static channelColors = [
         new thre.Color(0.5, 0.5, 0.8),
         new thre.Color(0.8, 0.8, 0.5),
@@ -173,7 +173,7 @@ class Viewer {
             }
             else {
                 if (this.showChannel) {
-                    beam.material.color.copy(Viewer.channelColors[this.model.edgeChannel[i]]);
+                    beam.material.color.copy(Viewer.channelColors[this.model.edgeChannel[i]]).multiplyScalar(this.model.maxContraction[i] / 0.5 + 0.3);
                 }
                 else {
                     beam.material.color.copy(Viewer.beamColor);
