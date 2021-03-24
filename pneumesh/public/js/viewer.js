@@ -19,6 +19,8 @@ class Viewer {
         new thre.Color(0.5, 0.8, 0.8),
     ];
 
+    static fps = 30;
+
     constructor(model) {
         this.reset(model)
     }
@@ -26,6 +28,7 @@ class Viewer {
     reset(model) {
         this.model = model;
         this.model.viewer = this;
+        this.Viewer = Viewer;
 
         this.mesh = new thre.Object3D();
 

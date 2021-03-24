@@ -8,7 +8,7 @@ class CORSRequestHandler(SimpleHTTPRequestHandler):
         self.send_header('Cache-Control', 'no-store, no-cache, must-revalidate')
         return super(CORSRequestHandler, self).end_headers()
 
-port = 3000
+port = 4000
 ip = '0.0.0.0'
 
 httpd = HTTPServer((ip, port), CORSRequestHandler)

@@ -3,8 +3,6 @@
  * Created by Roll on 2021/3/2.
  */
 
-
-
 class Optimizer {
 
     constructor(model) {
@@ -18,9 +16,11 @@ class Optimizer {
         };
         this.actuating = 0;
 
-        this.nActions = 2;
-        this.nStepsTest = this.nActions * this.model.numStepsAction;
+        this.nActions = 4;
+        this.nStepsTest = this.nActions * this.model.Model.numStepsAction;
         this.nChannels = 2;
+
+        this.getEnergy = null;
     }
 
     annealing = function ({
@@ -49,9 +49,10 @@ class Optimizer {
         let bestState = lastState;
         let bestEnergy = lastEnergy;
 
-        let maxIter = 2000;
+        let maxIter = 20000;
         let iter = 0;
-        while (currentTemp > tempMin) {
+        // while (currentTemp > tempMin) {
+        while (iter < maxIter) {
             iter += 1;
             if (iter > maxIter) break;
             let currentState = newState(lastState);
@@ -82,16 +83,24 @@ class Optimizer {
 
     optimize() {
         let getEnergy = (x) => {
-            this.model.loadData(this.model.v0, this.model.e, this.model.faces, this.model.polytopes,
-                null, x.maxContraction, null, x.edgeChannel, null, x.script);
+            // this.model.loadData(this.model.v0, this.model.e, this.model.faces, this.model.polytopes,
+            //     null, x.maxContraction, null, x.edgeChannel, null, x.script);
+
             this.model.iAction = 0;
             this.model.numSteps = 0;
 
-            this.model.step(this.nStepsTest);
+            model.resetV();
+            model.simulate = true;
+            model.step(Math.floor(optimizer.nStepsTest), false);
+            model.step(Math.floor(optimizer.nStepsTest));
+            model.simulate = false;
 
             let center = this.model.centroid();
+            console.log(center.x);
             return center.x;
         };
+
+        this.getEnergy = getEnergy;
 
         let newState = (x) => {
             let nBeams = Math.floor(Math.random() * (x.maxContraction.length - 1e-5)) + 1;
@@ -116,7 +125,6 @@ class Optimizer {
         let getTemp = (tmp) => {
             return tmp - 0.001;
         };
-
 
         this.x.maxContraction = this.model.maxContraction;
         this.x.edgeChannel = this.model.edgeChannel;

@@ -9,6 +9,8 @@ import { Viewer } from './viewer.js';
 import { Optimizer } from './optimizer.js';
 
 let camera, scene, renderer, controls;
+let clock = new THREE.Clock();
+let delta = 0;
 let mouse = new THREE.Vector2();
 let mouseDown = false;
 let raycaster = new THREE.Raycaster();
@@ -108,6 +110,7 @@ let utils = {
             utils.enable(gui.sliders.rotZ);
             gui.sliders.rotZ.setValue(model.euler.z);
             Model.gravity = 0;
+            model.simulate = false;
             ground.visible = false;
             gridHelper.visible = false;
 
@@ -265,14 +268,16 @@ let utils = {
                     let edgeChannel = data.edgeChannel;
                     let edgeActive = data.edgeActive;
                     model.loadData(v, e, f, p, lMax, maxContraction, fixedVs, edgeChannel, edgeActive);
-                    model.init(false);
-                    this.recordV();
+                    model.init();
+                    model.recordV();
                 }
                 else {
                     model.loadData(v, e, f, p);
-                    model.init(true);
-                    this.recordV();
+                    model.init();
+                    model.recordV();
                 }
+                model.simulate = false;
+
                 scene.children.splice(4, 1);
                 viewer.reset(model);
                 scene.add(viewer.mesh);
@@ -593,12 +598,13 @@ function onMouseClick(event) {
     if (viewer.editingMesh && viewer.idSelected.length === 1 && viewer.typeSelected[0] === "face") {
         if (viewer.addingPolytope) {
             model.addPolytope(viewer.idSelected[0]);
+            model.recordV();
         }
         else if (viewer.removingPolytope) {
             model.removePolytope(viewer.idSelected[0]);
+            model.recordV();
         }
 
-        model.recordV();
 
         viewer.idSelected = [];
         viewer.typeSelected = [];
@@ -684,19 +690,28 @@ function onKeyUp( e ) {
     }
 }
 
-function animate() {
-
+function render() {
     controls.update();
-
-    model.step();
     viewer.updateMeshes();
     infoJoints.name(model.infoJoints());
     infoBeams.name(model.infoBeams());
-
-    // put render right before requestAnimationFrame, it will do scene.updateMatrixWorld() for raytracing
     renderer.render( scene, camera );
+}
+
+let ii = 0;
+function animate() {
 
     requestAnimationFrame( animate );
+
+    model.step(Math.floor(1 / Model.h / Viewer.fps));
+
+    delta += clock.getDelta();
+
+    if (delta > 1.0/Viewer.fps) {
+        // put render right before requestAnimationFrame, it will do scene.updateMatrixWorld() for raytracing
+        render();
+        delta = delta % 1.0/Viewer.fps;
+    }
 }
 
 // main ======================================================
